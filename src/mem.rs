@@ -30,36 +30,24 @@ mod mem {
         // Reads the value at address 'addr' as an unsigned 32 bit integer.
         // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
         // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
+        // Reading unset memory will return Option::None but should be interpreted as 0
         // TODO: Undefined sizes will trigger an error.
         // TODO: Writing out of bounds will trigger an error.
         // TODO: Attempting to write to the text section will trigger a warning.
         pub fn rd(&self, addr: usize, size: usize) -> u32 {
             // read byte
-            if size == 0 {
-                // expand byte to word
-                self.mem[addr] as u32
+            let mut data: u32 = self.mem[addr] as u32
+            // shift an read in extra byte
+            if size >= 1 {
+                data <<= 4;
+                data += (self.mem[addr + 1] as u32);
             }
-
-            // read half-word
-            else if size == 1 {
-                // word is {8'b0, mem[addr], mem[addr + 1]}
-                ((self.mem[addr]     as u32) << 4) +
-                 (self.mem[addr + 1] as u32)
+            // shift and read in extra 2 bytes
+            if size >= 2 {
+                data <<= 8;
+                data += (self.mem[addr + 2] as u32) <<  4) + (self.mem[addr + 3] as u32)
             }
-
-            // read word
-            else if size == 2 {
-                // word is {mem[addr], mem[addr + 1], mem[addr + 2], mem[addr + 3]}
-                //               << 4            << 4           << 4      mem[addr]
-                //                               << 4           << 4  mem[addr + 1]
-                //                                              << 4  mem[addr + 2]
-                //                                                    mem[addr + 3]
-                ((self.mem[addr]     as u32) << 12) +
-                ((self.mem[addr + 1] as u32) <<  8) +
-                ((self.mem[addr + 2] as u32) <<  4) +
-                 (self.mem[addr + 3] as u32)
-            }
-            else {0}
+            data
         }
 
         // Writes the value in 'data' to address 'addr'.
@@ -73,11 +61,11 @@ mod mem {
             // write byte
             self.mem[addr] = data as u8;
             // write remaining byte for half-word
-            if size == 1 {
+            if size >= 1 {
                 self.mem[addr + 1] = (data >> 4) as u8;
             }
             // write remaining bytes for word
-            if size == 2 {
+            if size >= 2 {
                 self.mem[addr + 2] = (data >> 8)  as u8;
                 self.mem[addr + 3] = (data >> 12) as u8;
             }
