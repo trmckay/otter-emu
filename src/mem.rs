@@ -14,7 +14,7 @@ pub struct Memory {
 
 impl Memory {
     // create a new memory
-    // memory is initialized to all 0s
+    // memory is initialized to all None (0)
     // text and stack are empty
     pub fn init() -> Memory {
         Memory {
@@ -26,18 +26,17 @@ impl Memory {
 
     // program the memory with a binary
     pub fn prog(&mut self, binary: &[u8]) {
-        // TODO: warn when binary is too large
+        assert!(binary.len() <= MEM_SIZE);
         for (addr, &item) in binary.iter().enumerate() {
             self.mem[addr] = Some(item);
         }
+        self.text_size = binary.len();
     }
 
     // Reads the value at address 'addr' as an unsigned 32 bit integer.
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
-    // Reading unset memory will return Option::None but should be interpreted as 0
-    // TODO: Writing out of bounds will trigger an error.
-    // TODO: Attempting to write to the text section will trigger a warning.
+    // Reading unset memory will return 0 and generate a warning
     pub fn rd(&self, addr: usize, size: Size) -> u32 {
 
         if addr >= MEM_SIZE {
@@ -93,14 +92,16 @@ impl Memory {
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not written. For example, with size=1 and data=0xFFFF,
     // only 0xF is written to the byte at 'addr'.
-    // TODO: Writing out of bounds will trigger an error.
-    // TODO: Attempting to write to the text section will trigger a warning.
     pub fn wr(&mut self, addr: usize, data: u32, size: Size) {
 
         if addr >= MEM_SIZE {
             eprintln!("Warning: attempting to write to an out of bounds memory location ({:#08x})",
                 addr);
             return
+        }
+
+        if addr < self.text_size {
+            eprintln!("Warning: writing to the text section ({:#08x})", addr)
         }
 
         let rv_size = match size {
@@ -231,5 +232,19 @@ mod tests {
         let mut mem = Memory::init();
         mem.wr(MEM_SIZE, 1, Size::Word);
         assert_eq!(0, mem.rd(MEM_SIZE, Size::Word));
+    }
+
+    #[test]
+    fn test_prog() {
+        let mut mem = Memory::init();
+        let mut binary: [u8; 16] = [0; 16];
+        for i in 0..16 {
+            binary[i as usize] = i as u8;
+        }
+        mem.prog(&binary);
+        assert_eq!(16, mem.text_size);
+        for i in 0..16 {
+            assert_eq!(i as u32, mem.rd(i, Size::Byte));
+        }
     }
 }
