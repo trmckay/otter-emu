@@ -166,6 +166,7 @@ pub fn decode(ir_bytes: u32) -> Instruction {
     ir
 }
 
+// TODO: this needs more testing; ideally 1-2 tests per instruction
 #[cfg(test)]
 mod tests {
     use super::*;

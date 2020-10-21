@@ -25,12 +25,19 @@ impl Memory {
     }
 
     // program the memory with a binary
-    pub fn prog(&mut self, binary: &[u8]) {
-        assert!(binary.len() <= MEM_SIZE);
-        for (addr, &item) in binary.iter().enumerate() {
-            self.mem[addr] = Some(item);
+    pub fn prog(&mut self, binary: Vec<Vec<u8>>) {
+        self.text_size = binary.len() * 4;
+        assert!(self.text_size <= MEM_SIZE);
+
+        // loop through each word, enumerating as the word address
+        for (word_addr, word) in binary.iter().enumerate() {
+            // loop through each byte in a word, enumerating as the byte offset
+            for (byte_offset, &byte) in word.iter().enumerate() {
+                // combine the word address and byte offset as {word_addr[31:2], byte_offset[1:0]}
+                // write the byte to this address at byte granularity
+                self.wr((word_addr << 2) + byte_offset, byte as u32, Size::Byte)
+            }
         }
-        self.text_size = binary.len();
     }
 
     // Reads the value at address 'addr' as an unsigned 32 bit integer.
@@ -237,11 +244,11 @@ mod tests {
     #[test]
     fn test_prog() {
         let mut mem = Memory::init();
-        let mut binary: [u8; 16] = [0; 16];
+        let mut binary: Vec<Vec<u8>> = vec![Vec::new(), Vec::new(), Vec::new(), Vec::new()];
         for i in 0..16 {
-            binary[i as usize] = i as u8;
+            binary[(i/4)].push(i as u8);
         }
-        mem.prog(&binary);
+        mem.prog(binary);
         assert_eq!(16, mem.text_size);
         for i in 0..16 {
             assert_eq!(i as u32, mem.rd(i, Size::Byte));
