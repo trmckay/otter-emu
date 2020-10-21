@@ -1,4 +1,6 @@
 mod mem;
+mod rf;
+mod decode;
 
 fn main() {
     println!("\nOTTER-SIM Prototype");
