@@ -52,7 +52,7 @@ impl Instruction {
         s_imm += (ir_bytes & 0b00000000000000000000111110000000) >> 7;
 
         // u_imm = {ir_bytes[31:12], 12{0}}
-        let u_imm: u32 = ir_bytes & 0b11111111111111111110000000000000;
+        let u_imm: u32 = ir_bytes & 0b11111111111111111111000000000000;
 
         // b_imm = {12{ir_bytes[31]}, ir_bytes[7], ir_bytes[30:25], ir_bytes[11:8], 0}
         let mut b_imm: u32 = 0;
@@ -197,7 +197,7 @@ mod tests {
         let ir_bytes: u32 = 0x0000f0b7;
         let ir = Instruction::decode(ir_bytes);
         assert_eq!(ir.rs1, 1);
-        assert_eq!(ir.imm, 15);
+        assert_eq!(ir.imm, (0b1111000000000000));
     }
 
     #[test]
@@ -213,9 +213,8 @@ mod tests {
     fn test_store() {
         let ir_bytes: u32 = 0x00112623;
         let ir = Instruction::decode(ir_bytes);
-        assert_eq!(ir.rd, 31);
-        assert_eq!(ir.rs1, 1);
-        assert_eq!(ir.rs2, 2);
+        assert_eq!(ir.rs1, 2);
+        assert_eq!(ir.rs2, 1);
         assert_eq!(ir.imm, 12);
     }
 
