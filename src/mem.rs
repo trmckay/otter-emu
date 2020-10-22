@@ -1,4 +1,8 @@
-const MEM_SIZE: usize = 0x1000; // in bytes
+// The size of the normal memory is 64 kB for the text and data sections.
+// Of course, the address space extends far beyond this.
+// MMIO is NOT implemented here. This is OTTER/board specific, so this functionality
+// is lifted to the emulator module.
+const MEM_SIZE: usize = 0x10000;
 
 pub enum Size {
     Byte,
@@ -8,8 +12,7 @@ pub enum Size {
 
 pub struct Memory {
     mem: [Option<u8>; MEM_SIZE],
-    text_size:  usize,  // text grows up from 0x0000
-    stack_size: usize   // stack grows down from 0x1000
+    programmed: bool
 }
 
 impl Memory {
@@ -19,15 +22,17 @@ impl Memory {
     pub fn init() -> Memory {
         Memory {
             mem: [None; MEM_SIZE],
-            text_size:  0,
-            stack_size: 0
+            programmed: false
         }
     }
 
     // program the memory with a binary
     pub fn prog(&mut self, binary: Vec<Vec<u8>>) {
-        self.text_size = binary.len() * 4;
-        assert!(self.text_size <= MEM_SIZE);
+        println!("Programming memory with data from binary...");
+        let binary_size = binary.len() * 4;
+        if binary_size >= MEM_SIZE {
+            panic!("Error: {} kB binary >= {} kB", binary_size / 1000 - 1, MEM_SIZE / 1000 - 1);
+        }
 
         // loop through each word, enumerating as the word address
         for (word_addr, word) in binary.iter().enumerate() {
@@ -38,6 +43,7 @@ impl Memory {
                 self.wr((word_addr << 2) + byte_offset, byte as u32, Size::Byte)
             }
         }
+        self.programmed = true;
     }
 
     // Reads the value at address 'addr' as an unsigned 32 bit integer.
@@ -47,8 +53,7 @@ impl Memory {
     pub fn rd(&self, addr: usize, size: Size) -> u32 {
 
         if addr >= MEM_SIZE {
-            eprintln!("Error: reading out of bounds memory ({:#08x})", addr);
-            return 0
+            panic!("Error: reading out of bounds memory ({:#08x})", addr);
         }
 
         let rv_size;
@@ -102,13 +107,8 @@ impl Memory {
     pub fn wr(&mut self, addr: usize, data: u32, size: Size) {
 
         if addr >= MEM_SIZE {
-            eprintln!("Warning: attempting to write to an out of bounds memory location ({:#08x})",
+            panic!("Error: attempting to write to an out of bounds memory location ({:#08x})",
                 addr);
-            return
-        }
-
-        if addr < self.text_size {
-            eprintln!("Warning: writing to the text section ({:#08x})", addr)
         }
 
         let rv_size = match size {
@@ -137,9 +137,6 @@ mod tests {
     #[test]
     fn test_init() {
         let mem = Memory::init();
-        assert_eq!(0, mem.stack_size);
-        assert_eq!(0, mem.text_size);
-        assert_eq!(MEM_SIZE, mem.mem.len());
     }
 
     #[test]
@@ -235,6 +232,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
     fn test_out_of_bounds() {
         let mut mem = Memory::init();
         mem.wr(MEM_SIZE, 1, Size::Word);
@@ -249,7 +247,6 @@ mod tests {
             binary[(i/4)].push(i as u8);
         }
         mem.prog(binary);
-        assert_eq!(16, mem.text_size);
         for i in 0..16 {
             assert_eq!(i as u32, mem.rd(i, Size::Byte));
         }
