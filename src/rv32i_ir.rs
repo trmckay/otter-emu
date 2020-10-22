@@ -1,4 +1,5 @@
-#[derive(Debug)]
+use std::num::Wrapping;
+
 pub enum Operation {
     // load upper
     LUI, AUIPC,
@@ -18,13 +19,12 @@ pub enum Operation {
     Invalid
 }
 
-#[derive(Debug)]
 pub struct Instruction {
-    op: Operation,
-    rs1: u32,
-    rs2: u32,
-    rd: u32,
-    imm: u32
+    pub op: Operation,
+    pub rs1: usize,
+    pub rs2: usize,
+    pub rd: usize,
+    pub imm: u32
 }
 
 // avert your eyes from this monstrosity
@@ -36,58 +36,58 @@ pub fn decode(ir_bytes: u32) -> Instruction {
     let funct7: u32 = (ir_bytes & 0b11111110000000000000000000000000) >> 25;
 
     // i_imm = {20{ir_bytes[32]}, ir_bytes[30:20]}
-    let mut i_imm: u32 = 0;
+    let mut i_imm = Wrapping(0u32);
     if (ir_bytes & 0b1000000000000000000000000000) > 0 {
-        i_imm += 0b11111111111111111111000000000000;
+        i_imm += Wrapping(0b11111111111111111111000000000000u32);
     }
-    i_imm += (ir_bytes & 0b01111111111100000000000000000000) >> 20;
+    i_imm += Wrapping((ir_bytes & 0b01111111111100000000000000000000u32) >> 20 as u32);
 
     // s_imm = {20{ir_bytes[31]}, ir_bytes[30, 25], ir_bytes[11:7]}
-    let mut s_imm: u32 = 0;
+    let mut s_imm = Wrapping(0u32);
     if ir_bytes & ir_bytes & 0b1000000000000000000000000000 > 0 {
-        s_imm += 0b11111111111111111111000000000000;
+        s_imm += Wrapping(0b11111111111111111111000000000000u32);
     }
-    s_imm += (ir_bytes & 0b01111110000000000000000000000000) >> 20;
-    s_imm += (ir_bytes & 0b00000000000000000000111110000000) >> 7;
+    s_imm += Wrapping((ir_bytes & 0b01111110000000000000000000000000) >> 20 as u32);
+    s_imm += Wrapping((ir_bytes & 0b00000000000000000000111110000000) >> 7 as u32);
 
     // u_imm = {ir_bytes[31:12], 12{0}}
-    let u_imm: u32 = ir_bytes & 0b11111111111111111111000000000000;
+    let u_imm = Wrapping(ir_bytes & 0b11111111111111111111000000000000 as u32);
 
     // b_imm = {12{ir_bytes[31]}, ir_bytes[7], ir_bytes[30:25], ir_bytes[11:8], 0}
-    let mut b_imm: u32 = 0;
+    let mut b_imm = Wrapping(0u32);
     if ir_bytes & 0b1000000000000000000000000000 > 0 {
-        b_imm += 0b11111111111111111111000000000000;
+        b_imm += Wrapping(0b11111111111111111111000000000000 as u32);
     }
-    b_imm += (ir_bytes & 0b00000000000000000000000010000000) << 8;
-    b_imm += (ir_bytes & 0b01111110000000000000000000000000) >> 20;
-    b_imm += (ir_bytes & 0b00000000000000000000111100000000) >> 7;
+    b_imm += Wrapping((ir_bytes & 0b00000000000000000000000010000000) << 8 as u32);
+    b_imm += Wrapping((ir_bytes & 0b01111110000000000000000000000000) >> 20 as u32);
+    b_imm += Wrapping((ir_bytes & 0b00000000000000000000111100000000) >> 7 as u32);
 
     // j_imm = {12{ir_bytes[31]}, ir_bytes[19:12], ir_bytes[20], ir_bytes[30:21], 0}
-    let mut j_imm: u32 = 0;
+    let mut j_imm = Wrapping(0u32);
     if ir_bytes & 0b1000000000000000000000000000 > 0 {
-        j_imm += 0b11111111111100000000000000000000;
+        j_imm += Wrapping(0b11111111111100000000000000000000u32);
     }
-    j_imm += ir_bytes & 0b00000000000011111111000000000000;
-    j_imm += (ir_bytes & 0b00000000000100000000000000000000) >> 9;
-    j_imm += (ir_bytes & 0b01111111111000000000000000000000) >> 20;
+    j_imm += Wrapping(ir_bytes & 0b00000000000011111111000000000000 as u32);
+    j_imm += Wrapping((ir_bytes & 0b00000000000100000000000000000000) >> 9 as u32);
+    j_imm += Wrapping((ir_bytes & 0b01111111111000000000000000000000) >> 20 as u32);
 
     let mut ir = Instruction {
         op: Operation::Invalid,
-        rs1: (ir_bytes & 0b00000000000011111000000000000000) >> 15,
-        rs2: (ir_bytes & 0b00000001111100000000000000000000) >> 20,
-        rd:  (ir_bytes & 0b00000000000000000000111110000000) >> 7,
+        rs1: ((ir_bytes & 0b00000000000011111000000000000000) >> 15) as usize,
+        rs2: ((ir_bytes & 0b00000001111100000000000000000000) >> 20) as usize,
+        rd:  ((ir_bytes & 0b00000000000000000000111110000000) >> 7) as usize,
         imm: 0
     };
 
     // match opcode
     match opcode {
-        0b0110111 => { ir.op = Operation::LUI; ir.imm = u_imm},
-        0b0010111 => { ir.op = Operation::AUIPC; ir.imm = u_imm},
-        0b1101111 => { ir.op = Operation::JAL; ir.imm = j_imm},
-        0b1100111 => { ir.op = Operation::JALR; ir.imm = i_imm},
+        0b0110111 => { ir.op = Operation::LUI; ir.imm = u_imm.0},
+        0b0010111 => { ir.op = Operation::AUIPC; ir.imm = u_imm.0},
+        0b1101111 => { ir.op = Operation::JAL; ir.imm = j_imm.0},
+        0b1100111 => { ir.op = Operation::JALR; ir.imm = i_imm.0},
         // branch
         0b1100011 => {
-            ir.imm = b_imm;
+            ir.imm = b_imm.0;
             match funct3 {
                 0b000 => ir.op = Operation::BEQ,
                 0b001 => ir.op = Operation::BNE,
@@ -100,7 +100,7 @@ pub fn decode(ir_bytes: u32) -> Instruction {
         },
         // load
         0b0000011 => {
-            ir.imm = i_imm;
+            ir.imm = i_imm.0;
             match funct3 {
                 0b000 => ir.op = Operation::LB,
                 0b001 => ir.op = Operation::LH,
@@ -112,7 +112,7 @@ pub fn decode(ir_bytes: u32) -> Instruction {
         },
         // store
         0b0100011 => {
-            ir.imm = s_imm;
+            ir.imm = s_imm.0;
             match funct3 {
                 0b000 => ir.op = Operation::SB,
                 0b001 => ir.op = Operation::SH,
@@ -122,7 +122,7 @@ pub fn decode(ir_bytes: u32) -> Instruction {
         },
         // arithmetic w/ immediate
         0b0010011 => {
-            ir.imm = i_imm;
+            ir.imm = i_imm.0;
             match funct3 {
                 0b000 => ir.op = Operation::ADDI,
                 0b010 => ir.op = Operation::SLTI,
