@@ -30,7 +30,6 @@ pub fn file_to_bytes(path: &str) -> Vec<Vec<u8>> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::process::Command;
 
     #[test]
     fn test_file_to_bytes() {
