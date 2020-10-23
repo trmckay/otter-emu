@@ -181,7 +181,7 @@ mod tests {
     */
 
     #[test]
-    fn test_branch() {
+    fn branch() {
         let ir_bytes: u32 = 0x01001663;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rs1, 0);
@@ -190,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn test_upper() {
+    fn upper() {
         let ir_bytes: u32 = 0x0000f0b7;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rs1, 1);
@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arithm_imm() {
+    fn arithm_imm() {
         let ir_bytes: u32 = 0x07c18f93;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rd, 31);
@@ -207,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    fn test_store() {
+    fn store() {
         let ir_bytes: u32 = 0x00112623;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rs1, 2);
@@ -216,7 +216,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arithm() {
+    fn arithm() {
         let ir_bytes: u32 = 0x00f706b3;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rd, 13);
@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn test_jump() {
+    fn jump() {
         let ir_bytes: u32 = 0x000000ef;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rd, 1);
