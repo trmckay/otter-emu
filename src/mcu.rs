@@ -5,47 +5,54 @@
 
 const MEM_SIZE: usize = 0x1000;
 
+const LEDS_ADDR: usize = 0x11080000;
+const LEDS_WIDTH: usize = 4;
+
+const SSEG_ADDR: usize = 0x110C0000;
+const SSEG_WIDTH: usize = 2;
+
+const SWITCHES_ADDR: usize = 0x11000000;
+const SWITCHES_WIDTH: usize = 4;
+
 pub struct Otter {
     pc: usize,
     mem: mem::Memory,
-    rf: rf::RegisterFile,
-    leds: Vec<bool>,
-    sseg: u16,
-    switches: Vec<bool>
+    rf: rf::RegisterFile
 }
 
 impl Otter {
 
-    pub fn init(binary: &str) -> Otter {
+    pub fn new() -> Otter {
         let mut mcu = Otter {
             pc: 0,
             mem: mem::Memory::new(MEM_SIZE),
             rf: rf::RegisterFile::init(),
-            leds: vec![false; 16],
-            sseg: 0,
-            switches: vec![false; 16]
         };
-        mcu.load_bin(binary);
+
+        // map IO
+        mcu.mem.add_io(LEDS_ADDR, LEDS_WIDTH);
+        mcu.mem.add_io(SSEG_ADDR, SSEG_WIDTH);
+        mcu.mem.add_io(SWITCHES_ADDR, SWITCHES_WIDTH);
+
         mcu
     }
 
     // Loads a binary from the path "binary" into the main memory.
     // Text section begins at zero. Binary should not exceed 64 kB.
-    fn load_bin(&mut self, binary: &str) {
+    pub fn load_bin(&mut self, binary: &str) {
         println!("Reading binary file {}...", binary);
         self.mem.prog(
             file_io::file_to_bytes(binary)
         );
     }
 
-    fn _fetch(&self) -> rv32i::Instruction {
+    fn fetch(&self) -> rv32i::Instruction {
         rv32i::decode(
             self.mem.rd(self.pc, mem::Size::Word)
         )
     }
 
-    // TODO: MMIO
-    fn _exec(&mut self, ir: rv32i::Instruction) {
+    fn exec(&mut self, ir: rv32i::Instruction) {
 
         let rs1_signed: i32 = self.rf.rd(ir.rs1) as i32;
         let rs1_unsigned: u32 = self.rf.rd(ir.rs1) as u32;
@@ -231,8 +238,8 @@ impl Otter {
     pub fn run(&mut self) {
         println!("\n Initialized successfully! Beginning execution.\n");
         loop {
-            self._exec(
-                self._fetch()
+            self.exec(
+                self.fetch()
             );
         }
     }
@@ -243,20 +250,21 @@ impl Otter {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rand::Rng;
 
     #[test]
     fn simple_add() {
-        let mut mcu = Otter::init("/dev/null");
+        let mut mcu = Otter::new();
 
         //addi x1, x0, 2
         //addi x2, x0, 3
-        mcu._exec(rv32i::Instruction {
+        mcu.exec(rv32i::Instruction {
             op: rv32i::Operation::ADDI,
             rs1: 0, rs2: 0, rd: 1, imm: 2
         });
         assert_eq!(2, mcu.rf.rd(1));
 
-        mcu._exec(rv32i::Instruction {
+        mcu.exec(rv32i::Instruction {
             op: rv32i::Operation::ADDI,
             rs1: 0, rs2: 0, rd: 2, imm: 3
         });
@@ -265,7 +273,7 @@ mod test {
         assert_eq!(3, mcu.rf.rd(2));
 
         // add x3, x1, x2
-        mcu._exec(rv32i::Instruction {
+        mcu.exec(rv32i::Instruction {
             op: rv32i::Operation::ADD,
             rs1: 1, rs2: 2, rd: 3, imm: 0
         });
@@ -273,5 +281,25 @@ mod test {
         assert_eq!(2, mcu.rf.rd(1));
         assert_eq!(3, mcu.rf.rd(2));
         assert_eq!(5, mcu.rf.rd(3));
+    }
+
+    #[test]
+    fn multi_add() {
+        let mut mcu = Otter::new();
+
+        let mut total = 0;
+        for _i in 0..32 {
+            let operand: u32 = rand::thread_rng().gen_range(0, 0xFF) as u32;
+            mcu.exec(rv32i::Instruction {
+                op: rv32i::Operation::ADDI,
+                rs1: 0, rs2: 0, rd: 2, imm: operand
+            });
+            mcu.exec(rv32i::Instruction {
+                op: rv32i::Operation::ADD,
+                rs1: 1, rs2: 2, rd: 1, imm: 0
+            });
+            total += operand;
+        }
+        assert_eq!(total, mcu.rf.rd(1));
     }
 }

@@ -287,11 +287,6 @@ mod tests {
     use rand::Rng;
 
     #[test]
-    fn init() {
-        let mem = Memory::new(0x1000);
-    }
-
-    #[test]
     fn byte() {
         let mut mem = Memory::new(0x1000);
         // write then read a byte

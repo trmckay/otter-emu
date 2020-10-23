@@ -1,5 +1,5 @@
 [package]
-name = "otter-sim"
+name = "otter-emu"
 version = "0.1.0"
 authors = ["Trevor McKay <trs.mckay@gmail.com>"]
 edition = "2018"
@@ -10,5 +10,5 @@ edition = "2018"
 rand = "*"
 
 [[bin]]
-name = "otter-sim"
+name = "oemu"
 path = "src/main.rs"
