@@ -1,7 +1,9 @@
 #[path = "./mem.rs"] mod mem;
 #[path = "./rf.rs"] mod rf;
-#[path = "./rv32i_ir.rs"] mod rv32i_ir;
+#[path = "./rv32i.rs"] mod rv32i;
 #[path = "./file_io.rs"] mod file_io;
+
+const MEM_SIZE: usize = 0x1000;
 
 pub struct Otter {
     pc: usize,
@@ -17,7 +19,7 @@ impl Otter {
     pub fn init(binary: &str) -> Otter {
         let mut mcu = Otter {
             pc: 0,
-            mem: mem::Memory::init(),
+            mem: mem::Memory::new(MEM_SIZE),
             rf: rf::RegisterFile::init(),
             leds: vec![false; 16],
             sseg: 0,
@@ -36,14 +38,14 @@ impl Otter {
         );
     }
 
-    fn _fetch(&self) -> rv32i_ir::Instruction {
-        rv32i_ir::decode(
+    fn _fetch(&self) -> rv32i::Instruction {
+        rv32i::decode(
             self.mem.rd(self.pc, mem::Size::Word)
         )
     }
 
-    // todo: MMIO
-    fn _exec(&mut self, ir: rv32i_ir::Instruction) {
+    // TODO: MMIO
+    fn _exec(&mut self, ir: rv32i::Instruction) {
 
         let rs1_signed: i32 = self.rf.rd(ir.rs1) as i32;
         let rs1_unsigned: u32 = self.rf.rd(ir.rs1) as u32;
@@ -62,163 +64,164 @@ impl Otter {
         // operations on memories should be with unsigned integers
         // i.e. numbers are always stored/retrieved as unsigned, then interpreted/casted
         match ir.op {
-            rv32i_ir::Operation::Invalid =>
+            rv32i::Operation::Invalid =>
                 panic!("Error: invalid instruction at {:#08x}", self.pc),
 
-            rv32i_ir::Operation::LUI =>
+            rv32i::Operation::LUI =>
                 self.rf.wr(ir.rd, ir.imm),
 
-            rv32i_ir::Operation::AUIPC =>
+            rv32i::Operation::AUIPC =>
                 self.pc = self.pc + (ir.imm as i32) as usize,
 
-            rv32i_ir::Operation::JAL => {
+            rv32i::Operation::JAL => {
                 self.rf.wr(ir.rd, self.pc as u32 + 4);
                 self.pc = self.pc + (ir.imm as i32) as usize
             },
 
-            rv32i_ir::Operation::JALR => {
+            rv32i::Operation::JALR => {
                 self.rf.wr(ir.rd, self.pc as u32 + 4);
                 self.pc = (rs1_signed + ir.imm as i32) as usize;
             },
 
-            rv32i_ir::Operation::BEQ => {
+            rv32i::Operation::BEQ => {
                 if rs1_signed ==  rs1_signed {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::BNE => {
+            rv32i::Operation::BNE => {
                 if rs1_signed != rs2_signed {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::BLT => {
+            rv32i::Operation::BLT => {
                 if rs1_signed < rs2_signed {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::BGE => {
+            rv32i::Operation::BGE => {
                 if rs1_signed >= rs2_signed {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::BLTU => {
+            rv32i::Operation::BLTU => {
                 if rs1_unsigned <= rs2_unsigned {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::BGEU => {
+            rv32i::Operation::BGEU => {
                 if rs1_unsigned >= rs2_unsigned {
                     self.pc = self.pc + (ir.imm as i32) as usize;
                 }
             },
 
-            rv32i_ir::Operation::LB =>
+            rv32i::Operation::LB =>
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte)),
 
-            rv32i_ir::Operation::LH =>
+            rv32i::Operation::LH =>
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord)),
 
-            rv32i_ir::Operation::LW =>
+            rv32i::Operation::LW =>
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Word)),
 
             // unimplemented
-            rv32i_ir::Operation::LBU =>
+            rv32i::Operation::LBU =>
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte)),
 
             // unimplemented
-            rv32i_ir::Operation::LHU =>
+            rv32i::Operation::LHU =>
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord)),
 
-            rv32i_ir::Operation::SB => {
+            rv32i::Operation::SB => {
                 self.mem.wr(mem_addr, rs1_unsigned, mem::Size::Byte);
             },
 
-            rv32i_ir::Operation::SH => {
+            rv32i::Operation::SH => {
                 self.mem.wr(mem_addr, rs2_unsigned, mem::Size::HalfWord);
             },
 
-            rv32i_ir::Operation::SW => {
+            rv32i::Operation::SW => {
                 self.mem.wr(mem_addr, rs2_unsigned, mem::Size::Word);
             },
 
-            rv32i_ir::Operation::ADDI => {
+            rv32i::Operation::ADDI => {
                 self.rf.wr(ir.rd, (rs1_signed + (ir.imm as i32)) as u32);
             },
 
-            rv32i_ir::Operation::SLTI => {
+            rv32i::Operation::SLTI => {
                 self.rf.wr(ir.rd, (rs1_signed < (ir.imm as i32)) as u32);
             },
 
-            rv32i_ir::Operation::SLTIU => {
+            rv32i::Operation::SLTIU => {
                 self.rf.wr(ir.rd, (rs1_unsigned < (ir.imm as u32)) as u32);
             },
 
-            rv32i_ir::Operation::XORI => {
+            rv32i::Operation::XORI => {
                 self.rf.wr(ir.rd, rs1_unsigned ^ (ir.imm as u32));
             },
 
-            rv32i_ir::Operation::ORI => {
+            rv32i::Operation::ORI => {
                 self.rf.wr(ir.rd, rs1_unsigned | (ir.imm as u32));
             },
 
-            rv32i_ir::Operation::ANDI => {
+            rv32i::Operation::ANDI => {
                 self.rf.wr(ir.rd, rs1_unsigned & (ir.imm as u32));
             },
 
-            rv32i_ir::Operation::SLLI => {
+            rv32i::Operation::SLLI => {
                 self.rf.wr(ir.rd, (rs1_unsigned << (ir.imm as i32)) as u32);
             },
 
-            rv32i_ir::Operation::SRLI => {
+            rv32i::Operation::SRLI => {
                 self.rf.wr(ir.rd, (rs1_unsigned >> (ir.imm as i32)) as u32);
             },
 
-            rv32i_ir::Operation::SRAI => {
+            rv32i::Operation::SRAI => {
                 self.rf.wr(ir.rd, (rs1_signed >> (ir.imm as i32)) as u32);
             },
 
-            rv32i_ir::Operation::ADD => {
+            rv32i::Operation::ADD => {
                 self.rf.wr(ir.rd, (rs1_signed + rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SUB => {
+            rv32i::Operation::SUB => {
                 self.rf.wr(ir.rd, (rs1_signed - rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SLL => {
+            rv32i::Operation::SLL => {
                 self.rf.wr(ir.rd, (rs1_unsigned << rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SLT => {
+            rv32i::Operation::SLT => {
                 self.rf.wr(ir.rd, (rs1_signed < rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SLTU => {
+            rv32i::Operation::SLTU => {
                 self.rf.wr(ir.rd, (rs1_unsigned < rs2_unsigned) as u32)
             },
 
-            rv32i_ir::Operation::XOR => {
+            rv32i::Operation::XOR => {
                 self.rf.wr(ir.rd, (rs1_signed ^ rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SRL => {
+            rv32i::Operation::SRL => {
                 self.rf.wr(ir.rd, (rs1_unsigned >> rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::SRA => {
+            rv32i::Operation::SRA => {
                 self.rf.wr(ir.rd, (rs1_signed >> rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::OR => {
+            rv32i::Operation::OR =>
+            {
                 self.rf.wr(ir.rd, (rs1_signed | rs2_signed) as u32)
             },
 
-            rv32i_ir::Operation::AND => {
+            rv32i::Operation::AND => {
                 self.rf.wr(ir.rd, (rs1_signed & rs2_signed) as u32)
 
             }
@@ -239,5 +242,36 @@ impl Otter {
 
 #[cfg(test)]
 mod test {
+    use super::*;
 
+    #[test]
+    fn simple_add() {
+        let mut mcu = Otter::init("/dev/null");
+
+        //addi x1, x0, 2
+        //addi x2, x0, 3
+        mcu._exec(rv32i::Instruction {
+            op: rv32i::Operation::ADDI,
+            rs1: 0, rs2: 0, rd: 1, imm: 2
+        });
+        assert_eq!(2, mcu.rf.rd(1));
+
+        mcu._exec(rv32i::Instruction {
+            op: rv32i::Operation::ADDI,
+            rs1: 0, rs2: 0, rd: 2, imm: 3
+        });
+
+        assert_eq!(2, mcu.rf.rd(1));
+        assert_eq!(3, mcu.rf.rd(2));
+
+        // add x3, x1, x2
+        mcu._exec(rv32i::Instruction {
+            op: rv32i::Operation::ADD,
+            rs1: 1, rs2: 2, rd: 3, imm: 0
+        });
+
+        assert_eq!(2, mcu.rf.rd(1));
+        assert_eq!(3, mcu.rf.rd(2));
+        assert_eq!(5, mcu.rf.rd(3));
+    }
 }

@@ -32,7 +32,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_file_to_bytes() {
+    fn ta_bin() {
         let bytes = file_to_bytes("res/test_all.bin");
         // first word
         assert_eq!(0x37, bytes[0][0]);

@@ -40,7 +40,7 @@ mod tests {
     use rand::Rng;
 
     #[test]
-    fn test_init() {
+    fn init() {
         let rf = RegisterFile::init();
         assert_eq!(RF_SIZE, rf.mem.len());
         for i in 0..RF_SIZE {
@@ -49,7 +49,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all() {
+    fn all() {
         let mut rf = RegisterFile::init();
         let mut written: [u32; RF_SIZE] = [0; RF_SIZE];
         for i in 0..RF_SIZE {
@@ -64,7 +64,7 @@ mod tests {
     }
 
     #[test]
-    fn test_out_of_bounds() {
+    fn out_of_bounds() {
         let mut rf = RegisterFile::init();
         rf.wr(RF_SIZE, 1);
         assert_eq!(0, rf.rd(RF_SIZE));
