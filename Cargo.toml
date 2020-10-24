@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 rand = "*"
+cursive = "0.15"
 
 [[bin]]
 name = "oemu"
