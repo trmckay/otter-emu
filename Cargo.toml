@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 rand = "*"
 cursive = "0.15"
+clap = "3.0.0-beta.2"
 
 [[bin]]
 name = "oemu"
