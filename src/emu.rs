@@ -1,25 +1,35 @@
 #[path = "./otter.rs"] mod otter;
-use std::time;
+use std::{thread, time};
 
-fn run_cli(mcu: &mut otter::MCU) {
+fn refresh_ui(mcu: &otter::MCU, debug: bool) {
+        print!("\x1B[2J\x1B[1;1H"); // clear terminal
 
-    let paused = false;
-    let mut from: u32;
+        println!(" PC: {:#08x}", mcu.pc);
+        println!("+-------------------------------------------+");
+        if debug {
+            let ir = mcu.fetch();
+            println!("      Instruction: {:?} ({:#08x})",
+                ir.op, mcu.mem.rd(mcu.pc, otter::mem::Size::Word));
+            println!("  Operand 1 (rs1): x{:#} = {:#} / {:#x}",
+                ir.rs1, mcu.rf.rd(ir.rs1), mcu.rf.rd(ir.rs1));
+            println!("  Operand 2 (rs2): x{:#} = {:#} / {:#x}",
+                ir.rs2, mcu.rf.rd(ir.rs2), mcu.rf.rd(ir.rs2));
+            println!(" Destination (rd): {:#}", ir.rd);
+            println!("        Immediate: {:#} / {:#x}", ir.imm, ir.imm);
 
-    loop {
-        let t0 = time::Instant::now();
+            println!("+-------------------------------------------+");
 
-        // save current pc before executing, useful for debugging jumps/branches
-        from = mcu.pc;
-
-        // exec 1
-        if !paused {
-            mcu.step();
+            println!(" Registers:");
+            for i in 0..32 {
+                let rd = mcu.rf.rd(i);
+                println!("   x{:#02} = {:#} / {:#08x}", i, rd, rd);
+            }
         }
 
-        print!("\x1B[2J\x1B[1;1H"); // clear terminal
-        println!("          F E D C B A 9 8 7 6 5 4 3 2 1 0");
-        print!("    leds: ");
+        println!("+-------------------------------------------+");
+
+        println!("           F E D C B A 9 8 7 6 5 4 3 2 1 0");
+        print!("      LEDs: ");
         for led in mcu.leds().iter().rev() {
             if *led {
                 print!("* ");
@@ -28,7 +38,8 @@ fn run_cli(mcu: &mut otter::MCU) {
                 print!("- ");
             }
         }
-        print!("\nswitches: ");
+
+        print!("\n  Switches: ");
         for led in mcu.switches().iter().rev() {
             if *led {
                 print!("* ");
@@ -38,15 +49,27 @@ fn run_cli(mcu: &mut otter::MCU) {
             }
         }
         println!("");
-        println!("    sseg: {:#04x}", mcu.sseg());
-        println!("      pc: {:#08x}", mcu.pc);
-        println!("    from: {:#08x}", from);
+        println!(" 7-Segment: {:#04x}", mcu.sseg());
 
-        let t1 = time::Instant::now();
-        let dt = (t1 - t0).as_micros();
-        let clk = (1 as f64)/(dt as f64) * 2000 as f64;
-        println!(" eqv clk: {:#.02} kHz", clk);
-        println!("{}", 0b1011 as i32);
+        println!("+-------------------------------------------+");
+
+
+}
+
+fn run_cli(mcu: &mut otter::MCU) {
+    let debug = unsafe { super::DEBUG };
+
+    loop {
+        refresh_ui(mcu, debug);
+
+        if debug {
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line).unwrap();
+        }
+
+        // exec 1
+        mcu.step();
+        thread::sleep(time::Duration::from_millis(2));
     }
 }
 
