@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 
 // The size of the normal memory is 64 kB for the text and data sections.
 // Of course, the address space extends far beyond this.
@@ -12,22 +13,22 @@ pub enum Size {
 }
 
 struct IODevice {
-    size: usize,
+    size: u32,
     contents: Vec<u8>
 }
 
 impl IODevice {
-    pub fn new(size: usize) -> IODevice {
+    pub fn new(size: u32) -> IODevice {
         IODevice {
             size: size,
-            contents: vec![0; size]
+            contents: vec![0; size as usize]
         }
     }
 }
 
 struct MMIO {
-    addrs: Vec<usize>,
-    devices: HashMap<usize, IODevice>
+    addrs: Vec<u32>,
+    devices: HashMap<u32, IODevice>
 }
 
 impl MMIO {
@@ -40,7 +41,7 @@ impl MMIO {
 
 
     // TODO: incorporate checking size for matching; broken as is
-    fn match_addr_to_key(&self, addr: usize) -> Option<usize> {
+    fn match_addr_to_key(&self, addr: u32) -> Option<u32> {
         for key in &self.addrs {
             if addr >= *key {
                 match self.devices.get(&key) {
@@ -54,10 +55,10 @@ impl MMIO {
         None
     }
 
-    pub fn rd(&self, addr: usize, size: Size) -> u32 {
-        let dev_addr: usize;
+    pub fn rd(&self, addr: u32, size: Size) -> u32 {
+        let dev_addr: u32;
         let device = match self.match_addr_to_key(addr) {
-            None => panic!("Error: read from non-existent MMIO devices at address {:#08x}", addr),
+            None => panic!("Error: read from non-existent MMIO device at address {:#08x}", addr),
             Some(key) => {
                 dev_addr = key;
                 match self.devices.get(&key) {
@@ -74,19 +75,19 @@ impl MMIO {
             Size::Word => 2
         };
 
-        let mut data: u32 = device.contents[offset] as u32;
+        let mut data: u32 = device.contents[offset as usize] as u32;
         if rv_size >= 1 {
-            data += (device.contents[offset + 1] as u32) << 8;
+            data += (device.contents[offset as usize + 1] as u32) << 8;
         }
         if rv_size >= 2 {
-            data += (device.contents[offset + 2] as u32) << 16;
-            data += (device.contents[offset + 3] as u32) << 24;
+            data += (device.contents[offset as usize + 2] as u32) << 16;
+            data += (device.contents[offset as usize + 3] as u32) << 24;
         }
         data
     }
 
-    pub fn wr(&mut self, addr: usize, data: u32, size: Size) {
-        let dev_addr: usize;
+    pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
+        let dev_addr: u32;
 
         let device = match self.match_addr_to_key(addr) {
             None => panic!("Error: read from non-existent MMIO device at address {:#08x}", addr),
@@ -107,36 +108,35 @@ impl MMIO {
             Size::Word => 2
         };
 
-        device.contents[offset] = (data & 0x000000FF) as u8;
-        if rv_size >= 1 {
-            device.contents[offset] = (data & 0x000000FF) as u8;
-            device.contents[offset + 1] = ((data & 0x0000FF00) >> 8) as u8;
+        device.contents[offset as usize] = (data & 0x000000FF) as u8;
+        if rv_size >= 1 && device.size >= 2 {
+                device.contents[offset as usize + 1] = ((data & 0x0000FF00) >> 8) as u8;
         }
-        if rv_size >= 2 {
-            device.contents[offset + 2] = ((data & 0x00FF0000) >> 16) as u8;
-            device.contents[offset + 3] = ((data & 0xFF000000) >> 24) as u8;
+        if rv_size >= 2 && device.size >= 4 {
+            device.contents[offset as usize + 2] = ((data & 0x00FF0000) >> 16) as u8;
+            device.contents[offset as usize + 3] = ((data & 0xFF000000) >> 24) as u8;
         }
     }
 }
 
 pub struct RAM {
     mem: Vec<Option<u8>>,
-    pub size: usize
+    pub size: u32
 }
 
 impl RAM {
-    pub fn new(size: usize) -> RAM {
+    pub fn new(size: u32) -> RAM {
         RAM {
-            mem: vec![None; size],
+            mem: vec![None; size as usize],
             size: size
         }
     }
 
-    fn try_read_byte(&self, addr: usize, offset: usize) -> u8 {
-        let d_rd: Option<u8> = self.mem[addr + offset];
+    fn try_read_byte(&self, addr: u32, offset: u8) -> u8 {
+        let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
             None => {
-                eprintln!("Warning: reading unset byte as zero ({:#08x})", addr + offset);
+                eprintln!("Warning: reading unset byte as zero ({:#08x})", addr + offset as u32);
                 0
             },
             Some(d) => d
@@ -147,7 +147,7 @@ impl RAM {
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
     // Reading unset memory will return 0 and generate a warning
-    pub fn rd(&self, addr: usize, size: Size) -> u32 {
+    pub fn rd(&self, addr: u32, size: Size) -> u32 {
 
         let rv_size;
         match size {
@@ -182,7 +182,7 @@ impl RAM {
         data
     }
 
-    fn wr(&mut self, addr: usize, data: u32, size: Size) {
+    fn wr(&mut self, addr: u32, data: u32, size: Size) {
 
         if addr >= self.size {
             panic!("Error: write to invalid memory location ({:#08x})",
@@ -195,14 +195,14 @@ impl RAM {
             Size::Word => 2
         };
 
-        self.mem[addr] = Some((data & 0x000000FF) as u8);
+        self.mem[addr as usize] = Some((data & 0x000000FF) as u8);
         if rv_size >= 1 {
-            self.mem[addr] = Some((data & 0x000000FF) as u8);
-            self.mem[addr + 1] = Some(((data & 0x0000FF00) >> 8) as u8);
+            self.mem[addr as usize] = Some((data & 0x000000FF) as u8);
+            self.mem[addr as usize + 1] = Some(((data & 0x0000FF00) >> 8) as u8);
         }
         if rv_size >= 2 {
-            self.mem[addr + 2] = Some(((data & 0x00FF0000) >> 16) as u8);
-            self.mem[addr + 3] = Some(((data & 0xFF000000) >> 24) as u8);
+            self.mem[addr as usize + 2] = Some(((data & 0x00FF0000) >> 16) as u8);
+            self.mem[addr as usize + 3] = Some(((data & 0xFF000000) >> 24) as u8);
         }
     }
 }
@@ -210,14 +210,14 @@ impl RAM {
 pub struct Memory {
     main: RAM,
     mmio: MMIO,
-    mmio_begin: usize
+    mmio_begin: u32
 }
 
 impl Memory {
     // create a new memory
     // memory is initialized to all None (0)
     // text and stack are empty
-    pub fn new(main_size: usize) -> Memory {
+    pub fn new(main_size: u32) -> Memory {
         Memory {
             main: RAM::new(main_size),
             mmio: MMIO::new(),
@@ -229,7 +229,7 @@ impl Memory {
     pub fn prog(&mut self, binary: Vec<Vec<u8>>) {
         println!("Programming memory with data from binary...");
         let binary_size = binary.len() * 4;
-        if binary_size >= self.main.size {
+        if binary_size >= self.main.size as usize {
             panic!("Error: {} kB binary >= {} kB", binary_size / 1000 - 1, self.main.size / 1000 - 1);
         }
 
@@ -239,13 +239,13 @@ impl Memory {
             for (byte_offset, &byte) in word.iter().enumerate() {
                 // combine the word address and byte offset as {word_addr[31:2], byte_offset[1:0]}
                 // write the byte to this address at byte granularity
-                self.wr((word_addr << 2) + byte_offset, byte as u32, Size::Byte)
+                self.wr(((word_addr << 2) + byte_offset) as u32, byte as u32, Size::Byte)
             }
         }
     }
 
     // map an IO device to 'addr' that contains 'size' bytes
-    pub fn add_io(&mut self, addr: usize, size: usize) {
+    pub fn add_io(&mut self, addr: u32, size: u32) {
         if self.mmio.devices.contains_key(&addr) {
             panic!("Error: cannot map new IO device to preoccupied address {:#08x}", addr);
         }
@@ -256,7 +256,7 @@ impl Memory {
         self.mmio_begin = self.mmio.addrs[0];
     }
 
-    pub fn rd(&self, addr: usize, size: Size) -> u32 {
+    pub fn rd(&self, addr: u32, size: Size) -> u32 {
         if addr < self.main.size {
             return self.main.rd(addr, size);
         }
@@ -268,7 +268,7 @@ impl Memory {
         }
     }
 
-    pub fn wr(&mut self, addr: usize, data: u32, size: Size) {
+    pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
         if addr < self.main.size {
             self.main.wr(addr, data, size);
         }
@@ -276,7 +276,7 @@ impl Memory {
             self.mmio.wr(addr, data, size);
         }
         else {
-            panic!("Error: write from invalid memory location {:#08x}", addr);
+            panic!("Error: write to invalid memory location {:#08x}", addr);
         }
     }
 }
@@ -290,7 +290,7 @@ mod tests {
     fn byte() {
         let mut mem = Memory::new(0x1000);
         // write then read a byte
-        let addr: usize = 0x0123;
+        let addr: u32 = 0x0123;
         let data_wr: u32 = 0x000000FF;
         let data_exp: u32 = 0x000000FF;
         mem.wr(addr, data_wr, Size::Byte);
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn halfword() {
         let mut mem = Memory::new(0x1000);
-        let addr: usize = 0x0321;
+        let addr: u32 = 0x0321;
         let data_wr: u32  = 0x0000FFFF;
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
@@ -329,7 +329,7 @@ mod tests {
     #[test]
     fn halfword_overflow() {
         let mut mem = Memory::new(0x1000);
-        let addr: usize = 0x0000;
+        let addr: u32 = 0x0000;
         let data_wr: u32  = 0xFFFFFFFF;
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
@@ -342,7 +342,7 @@ mod tests {
     #[test]
     fn word() {
         let mut mem = Memory::new(0x1000);
-        let addr: usize = 0x0000;
+        let addr: u32 = 0x0000;
         let data_wr: u32  = 0x1234ABCD;
         let data_exp: u32 = 0x1234ABCD;
         mem.wr(addr, data_wr, Size::Word);
