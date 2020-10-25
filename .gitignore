@@ -1,2 +1,4 @@
 /target
 .vscode
+res/assembler/src
+res/assembler/build

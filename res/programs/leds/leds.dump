@@ -2,7 +2,7 @@
 build/program.elf:     file format elf32-littleriscv
 
 Contents of section .text:
- 0000 37020811 13011100 23202200 6ff05fff  7.......# ".o._.
+ 0000 b7020811 13031300 23a06200 e30a00fe  ........#.b.....
 Contents of section .riscv.attributes:
  0000 41190000 00726973 63760001 0f000000  A....riscv......
  0010 05727633 32693270 3000               .rv32i2p0.      
@@ -10,7 +10,7 @@ Contents of section .riscv.attributes:
 Disassembly of section .text:
 
 00000000 <st>:
-   0:	11080237          	lui	tp,0x11080
-   4:	00110113          	addi	sp,sp,1
-   8:	00222023          	sw	sp,0(tp) # 11080000 <__sp+0x11070000>
-   c:	ff5ff06f          	j	0 <st>
+   0:	110802b7          	lui	t0,0x11080
+   4:	00130313          	addi	t1,t1,1
+   8:	0062a023          	sw	t1,0(t0) # 11080000 <__sp+0x11070000>
+   c:	fe000ae3          	beqz	zero,0 <st>
