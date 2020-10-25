@@ -1,4 +1,4 @@
-#[path = "./mem.rs"] mod mem;
+#[path = "./mem.rs"] pub mod mem;
 #[path = "./rf.rs"] mod rf;
 #[path = "./rv32i.rs"] mod rv32i;
 #[path = "./file_io.rs"] mod file_io;
@@ -16,8 +16,8 @@ const SWITCHES_WIDTH: u32 = 2;
 
 pub struct MCU {
     pub pc: u32,
-    mem: mem::Memory,
-    rf: rf::RegisterFile
+    pub mem: mem::Memory,
+    pub rf: rf::RegisterFile
 }
 
 impl MCU {
@@ -46,20 +46,20 @@ impl MCU {
         );
     }
 
-    fn fetch(&self) -> rv32i::Instruction {
+    pub fn fetch(&self) -> rv32i::Instruction {
         rv32i::decode(
             self.mem.rd(self.pc, mem::Size::Word)
         )
     }
 
-    fn exec(&mut self, ir: rv32i::Instruction) {
+    pub fn exec(&mut self, ir: rv32i::Instruction) {
 
         let rs1: u32 = self.rf.rd(ir.rs1);
         let rs2: u32 = self.rf.rd(ir.rs2);
-        let mem_addr = rs1 + ir.imm;
-        let jalr_target = rs1 + ir.imm;
-        let branch_target = self.pc + ir.imm;
-        let jump_target = self.pc + ir.imm;
+        let mem_addr = rs1.overflowing_add(ir.imm).0;
+        let jalr_target = rs1.overflowing_add(ir.imm).0;
+        let branch_target = self.pc.overflowing_add(ir.imm).0;
+        let jump_target = self.pc.overflowing_add(ir.imm).0;
 
         // note: immediates and rf reads should be cast explicitly to i32 or u32
         // operations on memories should be with unsigned integers
