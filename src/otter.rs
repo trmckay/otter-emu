@@ -1,7 +1,7 @@
 #[path = "./mem.rs"] pub mod mem;
-#[path = "./rf.rs"] mod rf;
-#[path = "./rv32i.rs"] mod rv32i;
-#[path = "./file_io.rs"] mod file_io;
+#[path = "./rf.rs"] pub mod rf;
+#[path = "./rv32i.rs"] pub mod rv32i;
+#[path = "./file_io.rs"] pub mod file_io;
 
 const MEM_SIZE: u32 = 0x10000;
 
@@ -40,16 +40,25 @@ impl MCU {
     // Loads a binary from the path "binary" into the main memory.
     // Text section begins at zero. Binary should not exceed 64 kB.
     pub fn load_bin(&mut self, binary: &str) {
-        println!("Reading binary file {}...", binary);
-        self.mem.prog(
-            file_io::file_to_bytes(binary)
-        );
+        self.mem.prog( file_io::file_to_bytes(binary));
     }
 
-    pub fn fetch(&self) -> rv32i::Instruction {
-        rv32i::decode(
-            self.mem.rd(self.pc, mem::Size::Word)
-        )
+    fn incr_pc(&mut self) {
+        self.pc = self.pc.overflowing_add(4).0;
+    }
+
+    pub fn validate(ir: rv32i::Instruction) {
+        // TODO:
+        //    - check mem read value on LOAD
+        //    - check jump/branch target within text
+        //    - check not writing to x0
+        //    - check for read/write non-existent register
+        //    - check for read/write invalid mem location
+    }
+
+    pub fn fetch(&self) -> (rv32i::Instruction, u32) {
+        let ir = self.mem.rd(self.pc, mem::Size::Word);
+        (rv32i::decode(ir), ir)
     }
 
     pub fn exec(&mut self, ir: rv32i::Instruction) {
@@ -65,17 +74,19 @@ impl MCU {
         // operations on memories should be with unsigned integers
         // i.e. numbers are always stored/retrieved as unsigned, then interpreted/casted
         match ir.op {
-            rv32i::Operation::Invalid =>
-                panic!("Error: invalid instruction at {:#08x}", self.pc),
+            rv32i::Operation::Invalid => {
+                eprintln!("Error: MCU: skipping invalid instruction at {:#010X}", self.pc);
+                self.incr_pc();
+            }
 
             rv32i::Operation::LUI => {
                 self.rf.wr(ir.rd, ir.imm);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::AUIPC => {
-                self.pc += ir.imm;
-                self.pc += 4;
+                self.rf.wr(ir.rd, self.pc.overflowing_add(ir.imm).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::JAL => {
@@ -92,7 +103,7 @@ impl MCU {
                 if rs1 as i32 == rs2 as i32 {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
@@ -100,7 +111,7 @@ impl MCU {
                 if rs1 as i32 != rs2 as i32 {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
@@ -108,7 +119,7 @@ impl MCU {
                 if (rs1 as i32) < (rs2 as i32) {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
@@ -116,7 +127,7 @@ impl MCU {
                 if (rs1 as i32) >= (rs2 as i32) {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
@@ -124,7 +135,7 @@ impl MCU {
                 if rs1 < rs2 {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
@@ -132,144 +143,145 @@ impl MCU {
                 if rs1 >= rs2 {
                     self.pc = branch_target;
                 } else {
-                    self.pc += 4;
+                    self.incr_pc();
                 }
             },
 
             rv32i::Operation::LB => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte))
+                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte));
+                self.incr_pc();
             },
 
             rv32i::Operation::LH => {
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord));
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::LW => {
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Word));
-                self.pc += 4;
+                self.incr_pc();
             },
 
             // unimplemented
             rv32i::Operation::LBU => {
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte));
-                self.pc += 4;
+                self.incr_pc();
             },
 
             // unimplemented
             rv32i::Operation::LHU => {
                 self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord));
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SB => {
                 self.mem.wr(mem_addr, rs1, mem::Size::Byte);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SH => {
                 self.mem.wr(mem_addr, rs2, mem::Size::HalfWord);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SW => {
                 self.mem.wr(mem_addr, rs2, mem::Size::Word);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::ADDI => {
-                self.rf.wr(ir.rd, rs1 + ir.imm);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_add(ir.imm).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SLTI => {
                 self.rf.wr(ir.rd, (rs1 < ir.imm) as u32);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SLTIU => {
                 self.rf.wr(ir.rd, (rs1 < ir.imm) as u32);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::XORI => {
                 self.rf.wr(ir.rd, rs1 ^ ir.imm);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::ORI => {
                 self.rf.wr(ir.rd, rs1 | ir.imm);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::ANDI => {
                 self.rf.wr(ir.rd, rs1 & ir.imm);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SLLI => {
-                self.rf.wr(ir.rd, rs1 << ir.imm);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_shl(ir.imm).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SRLI => {
-                self.rf.wr(ir.rd, rs1 >> ir.imm);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_shr(ir.imm).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SRAI => {
-                self.rf.wr(ir.rd, rs1 >> ir.imm);
-                self.pc += 4;
+                self.rf.wr(ir.rd, (rs1 as i32).overflowing_shr(ir.imm).0 as u32);
+                self.incr_pc();
             },
 
             rv32i::Operation::ADD => {
-                self.rf.wr(ir.rd, rs1 + rs2);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_add(rs2).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SUB => {
-                self.rf.wr(ir.rd, rs1 - rs2);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_sub(rs2).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SLL => {
-                self.rf.wr(ir.rd, rs1 << rs2);
-                self.pc += 4;
+                self.rf.wr(ir.rd, (rs1 as i32).overflowing_shl(rs2).0 as u32);
+                self.incr_pc();
             },
 
             rv32i::Operation::SLT => {
                 self.rf.wr(ir.rd, (rs1 < rs2) as u32);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SLTU => {
                 self.rf.wr(ir.rd, (rs1 < rs2) as u32);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::XOR => {
                 self.rf.wr(ir.rd, rs1 ^ rs2);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::SRL => {
-                self.rf.wr(ir.rd, rs1 >> rs2);
-                self.pc += 4;
+                self.rf.wr(ir.rd, rs1.overflowing_shr(rs2).0);
+                self.incr_pc();
             },
 
             rv32i::Operation::SRA => {
-                self.rf.wr(ir.rd, rs1 >> rs2);
-                self.pc += 4;
+                self.rf.wr(ir.rd, (rs1 as i32).overflowing_shr(rs2).0 as u32);
+                self.incr_pc();
             },
 
             rv32i::Operation::OR => {
                 self.rf.wr(ir.rd, rs1 | rs2);
-                self.pc += 4;
+                self.incr_pc();
             },
 
             rv32i::Operation::AND => {
                 self.rf.wr(ir.rd, rs1 & rs2);
-                self.pc += 4;
+                self.incr_pc();
             }
         };
     }
@@ -289,7 +301,6 @@ impl MCU {
     }
 
     pub fn set_sw(&mut self, index: usize, set_on: bool) {
-        // cannot natively write at the bit level, so some bit mangling is required
         let prev_state = self.mem.rd(SWITCHES_ADDR, mem::Size::HalfWord);
         let updated_state: u32;
         if set_on {
@@ -302,7 +313,6 @@ impl MCU {
     }
 
     pub fn toggle_sw(&mut self, index: usize) {
-        // cannot natively write at the bit level, so some bit mangling is required
         let prev_state = self.mem.rd(SWITCHES_ADDR, mem::Size::HalfWord);
         let updated_state: u32;
         updated_state = prev_state ^ (0b1 << index);
@@ -318,20 +328,34 @@ impl MCU {
         }
         switches
     }
-
-    pub fn step(&mut self) {
-        self.exec(
-            self.fetch()
-        )
-    }
 }
 
 // TODO: test each ir
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
     use rand::Rng;
+
+    #[test]
+    fn test_all() {
+        let mut do_break = false;
+        let mut mcu = MCU::new();
+        mcu.load_bin("res/programs/test_all/test_all.bin");
+        loop {
+            // first test
+            if mcu.pc == 0x18 {
+                if do_break {
+                    break;
+                } else {
+                    do_break = true;
+                }
+            }
+            mcu.exec(mcu.fetch().0);
+            // if ssegs are 0xffff, test-all fails
+            assert!(mcu.sseg() != 0xFFFF);
+        }
+    }
 
     #[test]
     fn add_addi() {

@@ -30,9 +30,9 @@ pub struct Instruction {
 
 fn decode_j_imm(ir_bits: &Vec<bool>) -> u32 {
     let mut j_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 12][..], &ir_bits[12..=19]);
-    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![ir_bits[20]; 1]);
+    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![ir_bits[20]][..]);
     j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &ir_bits[21..=30]);
-    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![false; 1]);
+    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![false; 1][..]);
     bitwise::vec_to_u32(&j_imm_vec[..])
 }
 
@@ -40,7 +40,7 @@ fn decode_b_imm(ir_bits: &Vec<bool>) -> u32 {
     let mut b_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[7..=7]);
     b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[25..=30]);
     b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[8..=11]);
-    b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &vec![false; 1]);
+    b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &vec![false; 1][..]);
     bitwise::vec_to_u32(&b_imm_vec[..])
 }
 
@@ -50,7 +50,7 @@ fn decode_u_imm(ir_bits: &Vec<bool>) -> u32 {
 }
 
 fn decode_i_imm(ir_bits: &Vec<bool>) -> u32 {
-    let i_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[20..=30]);
+    let i_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[20..=31][..]);
     bitwise::vec_to_u32(&i_imm_vec[..])
 }
 
@@ -211,7 +211,6 @@ pub fn decode(ir: u32) -> Instruction {
         _ => ()
     }
 
-    
     Instruction {
         op: op_type,
         rs1: rs1,
@@ -226,18 +225,9 @@ pub fn decode(ir: u32) -> Instruction {
 mod tests {
     use super::*;
 
-    /*
-    0x01001663: bne x0, x16, 12
-    0x0000f0b7: lui x1, 15
-    0x07c18f93: addi x31, x3, 124
-    0x00112623: sw x1, 12(x2)
-    0x00f706b3: add x13, x14, x15
-    0x000000ef: jal x1, 0
-    */
-
- 
     #[test]
     fn branch1() {
+        // bne x0, x16, 12
         let ir_bytes: u32 = 0x01001663;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rs1, 0);
@@ -255,7 +245,18 @@ mod tests {
     }
 
     #[test]
-    fn lui() {
+    fn jalr1() {
+        // jalr	-732(ra)
+        let ir_bytes: u32 = 0xd24080e7;
+        let ir = decode(ir_bytes);
+        println!("got: {:#034b}", ir.imm);
+        println!("exp: {:#034b}", -732);
+        assert_eq!(-732, ir.imm as i32);
+    }
+
+    #[test]
+    fn lui1() {
+        // lui x1, 15
         let ir_bytes: u32 = 0x0000f0b7;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rd, 1);
@@ -263,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn addi() {
+    fn addi1() {
         // addi x1, x0, 0x1d8
         let ir_bytes: u32 = 0x1d800093;
         let ir = decode(ir_bytes);
@@ -273,7 +274,8 @@ mod tests {
     }
 
     #[test]
-    fn sw() {
+    fn sw1() {
+        // sw x1, 12(x2)
         let ir_bytes: u32 = 0x00112623;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rs1, 2);
@@ -282,7 +284,8 @@ mod tests {
     }
 
     #[test]
-    fn add() {
+    fn add1() {
+        // add x13, x14, x15
         let ir_bytes: u32 = 0x00f706b3;
         let ir = decode(ir_bytes);
         assert_eq!(ir.rd, 13);
@@ -291,22 +294,12 @@ mod tests {
     }
 
     #[test]
-    fn jal() {
-        // jal x31, 0x3d60
-        let ir_bytes: u32 = 0x39903fef;
+    fn jal1() {
+        let ir_bytes: u32 = 0x9a1fe06f;
         let ir = decode(ir_bytes);
-        println!("got: {:#034b}", ir.imm as u32);
-        println!("exp: {:#034b}", 0x3d60 as u32);
-        assert_eq!(ir.rd, 31);
-        assert_eq!(ir.imm, 0x3d60);
-    }
-
-    #[test]
-    fn jalr() {
-        // jalr x1, 0x1d8
-        let ir_bytes: u32 = 0x1d8100e7;
-        let ir = decode(ir_bytes);
-        assert_eq!(ir.rd, 1);
-        assert_eq!(ir.imm, 0x1d8);
+        println!(" ir: {:#034b}", ir_bytes);
+        println!("got: {:#034b}", ir.imm);
+        println!("exp: {:#034b}", -5728);
+        assert_eq!(-5728, ir.imm as i32);
     }
 }
