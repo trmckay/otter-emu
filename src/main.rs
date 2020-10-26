@@ -38,7 +38,7 @@ fn main() {
         bin = String::from("mem.bin");
     }
 
-    let opts = emu::Options {
+    let mut opts = emu::Options {
         bin: bin,
         debug: debug,
         bps: bps,
@@ -46,9 +46,13 @@ fn main() {
         log_to_f: true
     };
 
+    println!("binary: ./{}", opts.bin);
+    println!("debug: {}", opts.debug);
+    println!("breakpoints: {:?}", opts.bps);
+
     let mut line = String::new();
     println!("Press enter to begin");
     std::io::stdin().read_line(&mut line).unwrap();
 
-    emu::emulate(&opts);
+    emu::emulate(&mut opts);
 }

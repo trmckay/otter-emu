@@ -9,6 +9,7 @@ const RF_NAMES: [&str; 32] = [
     "s8  ", "s9  ", "s10 ", "s11 ", "t3  ", "t4  ", "t5  ", "t6  "
 ];
 
+#[derive(Debug)]
 pub struct Options {
     pub bin: String,
     pub debug: bool,
@@ -17,27 +18,35 @@ pub struct Options {
     pub log_to_f: bool
 }
 
-fn run_cli(mcu: &mut otter::MCU, opts: &Options) {
+fn run_cli(mcu: &mut otter::MCU, opts: &mut Options) {
     loop {
-        if opts.bps.contains(&mcu.pc) && !opts.debug {
-            println!("\nHit breakpoint {:#010X}\nPress enter to start debug mode", mcu.pc);
-        }
 
         thread::sleep(time::Duration::from_millis(2));
 
         let ir = mcu.fetch();
         cli::refresh_ui(&mcu, &ir, opts);
 
+        if opts.bps.contains(&mcu.pc) && !opts.debug {
+            opts.debug = true;
+            cli::refresh_ui(&mcu, &ir, opts);
+            println!("\nHit breakpoint {:#010X}\nPress enter to step", mcu.pc);
+        }
+
         if opts.debug {
             let mut line = String::new();
             std::io::stdin().read_line(&mut line).unwrap();
+            match &line[..] {
+                ":c\n" => opts.debug = false,
+                ":q\n" => return,
+                _ => ()
+            }
         }
 
         mcu.exec(ir.0);
     }
 }
 
-pub fn emulate(opts: &Options) {
+pub fn emulate(opts: &mut Options) {
     let mut mcu = otter::MCU::new();
     mcu.load_bin(&opts.bin);
     run_cli(&mut mcu, opts);

@@ -3,11 +3,11 @@ use super::*;
 pub fn refresh_ui(mcu: &otter::MCU, ir: &(otter::rv32i::Instruction, u32), opts: &Options) {
         print!("\x1B[2J\x1B[1;1H"); // clear terminal
 
-        println!("+---------------------------------------------------+");
+        println!("+----------------------------------------------------+");
         println!("| PC: {:#010X}", mcu.pc);
 
         if opts.debug {
-            println!("+---------------------------------------------------+");
+            println!("+----------------------------------------------------+");
             println!("|      Instruction: {:?} ({:#010X})",
                 ir.0.op, ir.1);
             println!("|  Operand 1 (rs1): x{:#} = {:#} / {:#x}",
@@ -17,9 +17,10 @@ pub fn refresh_ui(mcu: &otter::MCU, ir: &(otter::rv32i::Instruction, u32), opts:
             println!("| Destination (rd): {:#}", ir.0.rd);
             println!("|        Immediate: {:#} / {:#x}", ir.0.imm, ir.0.imm);
 
-            println!("+---------------------------------------------------+");
+            println!("+----------------------------------------------------+");
 
-            println!(  "|   Register |     Signed |   Unsigned |        Hex");
+            println!(  "|   Register |      Signed |    Unsigned |        Hex");
+            println!(  "|------------|-------------|-------------|------------");
             for i in 0..32 {
                 let name = RF_NAMES[i];
                 let data = mcu.rf.rd(i as u32);
@@ -29,11 +30,11 @@ pub fn refresh_ui(mcu: &otter::MCU, ir: &(otter::rv32i::Instruction, u32), opts:
                 }
                 print!("x{}", i);
 
-                println!(", {}  | {:#10} | {:#10} | {:#10X}", name, data as i32, data, data);
+                println!(", {}  | {:#11} | {:#11} | {:#10X}", name, data as i32, data, data);
             }
         }
 
-        println!("+---------------------------------------------------+");
+        println!("+----------------------------------------------------+");
 
         println!("|            F E D C B A 9 8 7 6 5 4 3 2 1 0");
         print!("|      LEDs: ");
@@ -57,5 +58,5 @@ pub fn refresh_ui(mcu: &otter::MCU, ir: &(otter::rv32i::Instruction, u32), opts:
         }
         println!("\n| 7-Segment: {:#06X}", mcu.sseg());
 
-        println!("+---------------------------------------------------+");
+        println!("+----------------------------------------------------+");
 }
