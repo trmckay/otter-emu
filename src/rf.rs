@@ -13,22 +13,15 @@ impl RegisterFile<> {
     }
 
     pub fn rd(&self, index: u32) -> u32 {
-        if index >= RF_SIZE {
-            eprintln!("Warning: register {} does not exist", index);
-            return 0
+        if index < RF_SIZE && index > 0 {
+            self.mem[index as usize]
+        } else {
+            0
         }
-        self.mem[index as usize]
     }
 
     pub fn wr(&mut self, index: u32, data: u32) {
-        if index >= RF_SIZE {
-            eprintln!("Warning: register {} does not exist", index);
-            return
-        }
-        if index == 0 {
-            eprintln!("Warning: attempting to write to x0")
-        }
-        else {
+        if index < RF_SIZE && index > 0 {
             self.mem[index as usize] = data;
         }
     }

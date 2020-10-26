@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::io::Write;
 
 // The size of the normal memory is 64 kB for the text and data sections.
 // Of course, the address space extends far beyond this.
@@ -39,13 +38,11 @@ impl MMIO {
         }
     }
 
-
-    // TODO: incorporate checking size for matching; broken as is
     fn match_addr_to_key(&self, addr: u32) -> Option<u32> {
         for key in &self.addrs {
             if addr >= *key {
                 match self.devices.get(&key) {
-                    None => panic!("MMIO address {:#08x} is mapped to a non-existent device", key),
+                    None => (),
                     Some(device) => if addr < key + device.size {
                         return Some(*key);
                     }
@@ -58,15 +55,16 @@ impl MMIO {
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
         let dev_addr: u32;
         let device = match self.match_addr_to_key(addr) {
-            None => panic!("Error: read from non-existent MMIO device at address {:#08x}", addr),
+            None => return 0,
             Some(key) => {
                 dev_addr = key;
                 match self.devices.get(&key) {
-                    None => panic!("Error: device does not exist but its address {:#08x} is mapped", addr),
+                    None => return 0,
                     Some(dev) => dev
                 }
             }
         };
+
         let offset = addr - dev_addr;
 
         let rv_size = match size {
@@ -76,10 +74,10 @@ impl MMIO {
         };
 
         let mut data: u32 = device.contents[offset as usize] as u32;
-        if rv_size >= 1 {
+        if rv_size >= 1 && device.size >= 2 {
             data += (device.contents[offset as usize + 1] as u32) << 8;
         }
-        if rv_size >= 2 {
+        if rv_size >= 2 && device.size >= 4 {
             data += (device.contents[offset as usize + 2] as u32) << 16;
             data += (device.contents[offset as usize + 3] as u32) << 24;
         }
@@ -90,11 +88,11 @@ impl MMIO {
         let dev_addr: u32;
 
         let device = match self.match_addr_to_key(addr) {
-            None => panic!("Error: read from non-existent MMIO device at address {:#08x}", addr),
+            None => return,
             Some(key) => {
                 dev_addr = key;
                 match self.devices.get_mut(&key) {
-                    None => panic!("Error: device does not exist but its address {:#08x} is mapped", addr),
+                    None => return,
                     Some(dev) => dev
                 }
             }
@@ -135,10 +133,7 @@ impl RAM {
     fn try_read_byte(&self, addr: u32, offset: u8) -> u8 {
         let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
-            None => {
-                eprintln!("Warning: reading unset byte as zero ({:#08x})", addr + offset as u32);
-                0
-            },
+            None => 0,
             Some(d) => d
         }
     }
@@ -149,24 +144,11 @@ impl RAM {
     // Reading unset memory will return 0 and generate a warning
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
 
-        let rv_size;
-        match size {
-            Size::Byte => {
-                rv_size = 0;
-            },
-            Size::HalfWord => {
-                rv_size = 1;
-                if addr % 2 != 0 {
-                    eprintln!("Warning: not reading on half-word boundary ({:#08x})", addr);
-                }
-            },
-            Size::Word => {
-                rv_size = 2;
-                if addr % 4 != 0 {
-                    eprintln!("Warning: not reading on word boundary ({:#08x})", addr);
-                }
-            }
-        }
+        let rv_size = match size {
+            Size::Byte => 0,
+            Size::HalfWord => 1,
+            Size::Word => 2
+        };
 
                 // read first byte
         let mut data = self.try_read_byte(addr, 0) as u32;
@@ -185,8 +167,7 @@ impl RAM {
     fn wr(&mut self, addr: u32, data: u32, size: Size) {
 
         if addr >= self.size {
-            panic!("Error: write to invalid memory location ({:#08x})",
-                addr);
+            return;
         }
 
         let rv_size = match size {
@@ -227,10 +208,9 @@ impl Memory {
 
     // program the memory with a binary
     pub fn prog(&mut self, binary: Vec<Vec<u8>>) {
-        println!("Programming memory with data from binary...");
         let binary_size = binary.len() * 4;
         if binary_size >= self.main.size as usize {
-            panic!("Error: {} kB binary >= {} kB", binary_size / 1000 - 1, self.main.size / 1000 - 1);
+            panic!("Error: Memory: {} kB binary >= {} kB", binary_size / 1000 - 1, self.main.size / 1000 - 1);
         }
 
         // loop through each word, enumerating as the word address
@@ -247,7 +227,8 @@ impl Memory {
     // map an IO device to 'addr' that contains 'size' bytes
     pub fn add_io(&mut self, addr: u32, size: u32) {
         if self.mmio.devices.contains_key(&addr) {
-            panic!("Error: cannot map new IO device to preoccupied address {:#08x}", addr);
+            eprintln!("Error: Memory: cannot map new IO device to preoccupied address {:#010X}", addr);
+            return;
         }
         let device = IODevice::new(size);
         self.mmio.devices.insert(addr, device);
@@ -258,13 +239,13 @@ impl Memory {
 
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
         if addr < self.main.size {
-            return self.main.rd(addr, size);
+            self.main.rd(addr, size)
         }
         else if addr >= self.mmio_begin { 
-            return self.mmio.rd(addr, size);
+            self.mmio.rd(addr, size)
         }
         else {
-            panic!("Error: read from invalid memory location {:#08x}", addr);
+            0
         }
     }
 
@@ -274,9 +255,6 @@ impl Memory {
         }
         else if addr >= self.mmio_begin {
             self.mmio.wr(addr, data, size);
-        }
-        else {
-            panic!("Error: write to invalid memory location {:#08x}", addr);
         }
     }
 }
@@ -295,7 +273,7 @@ mod tests {
         let data_exp: u32 = 0x000000FF;
         mem.wr(addr, data_wr, Size::Byte);
         let data_rd: u32 = mem.rd(addr, Size::Byte);
-        println!{"wrote: {:#08x}, read: {:#08x}, expected: {:#08x}",
+        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
             data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
@@ -308,7 +286,7 @@ mod tests {
         let data_exp: u32 = 0x000000FF;
         mem.wr(addr, data_wr, Size::Byte);
         let data_rd: u32 = mem.rd(addr, Size::Byte);
-        println!{"wrote: {:#08x}, read: {:#08x}, expected: {:#08x}",
+        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
             data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
@@ -321,7 +299,7 @@ mod tests {
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
         let data_rd: u32 = mem.rd(addr, Size::HalfWord);
-        println!{"wrote: {:#08x}, read: {:#08x}, expected: {:#08x}",
+        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
             data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
@@ -334,7 +312,7 @@ mod tests {
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
         let data_rd: u32 = mem.rd(addr, Size::HalfWord);
-        println!{"wrote: {:#08x}, read: {:#08x}, expected: {:#08x}",
+        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
             data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
@@ -347,7 +325,7 @@ mod tests {
         let data_exp: u32 = 0x1234ABCD;
         mem.wr(addr, data_wr, Size::Word);
         let data_rd: u32 = mem.rd(addr, Size::Word);
-        println!{"wrote: {:#08x}, read: {:#08x}, expected: {:#08x}",
+        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
             data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
@@ -379,7 +357,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn wr_invalid() {
         let mut mem = Memory::new(0x1000);
         mem.add_io(0x1000, 4);
@@ -388,7 +365,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn rd_invalid() {
         let mut mem = Memory::new(0x1000);
         mem.add_io(0x1000, 4);

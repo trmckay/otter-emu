@@ -6,7 +6,7 @@ use std::io::Read;
 // returns a vector of words, where each word is a vector of four bytes
 pub fn file_to_bytes(path: &str) -> Vec<Vec<u8>> {
     let mut file = match File::open(String::from(path)) {
-        Err(why) => panic!("Error: could not open {}: {}", path, why),
+        Err(why) => panic!("Error: File IO: could not open file {}: {}", path, why),
         Ok(f) => f,
     };
 
@@ -17,7 +17,7 @@ pub fn file_to_bytes(path: &str) -> Vec<Vec<u8>> {
     loop {
         let mut chunk = Vec::with_capacity(chunk_size);
         let n = match file.by_ref().take(chunk_size as u64).read_to_end(&mut chunk) {
-            Err(why) => panic!("Error: could not read file {}: {}", path, why),
+            Err(why) => panic!("Error: File IO: could not read file {}: {}", path, why),
             Ok(r) => r
         };
         if n == 0 { break; }
