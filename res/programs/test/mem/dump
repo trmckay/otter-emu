@@ -1,0 +1,66 @@
+
+build/program.elf:     file format elf32-littleriscv
+
+Contents of section .text:
+ 0000 b7140000 938404f0 37090c11 b7090811  ........7.......
+ 0010 93821200 638e0200 23a05400 03a30400  ....c...#.T.....
+ 0020 23a05900 e38662fe 97000000 e780c004  #.Y...b.........
+ 0030 b7030100 93821200 638c7200 23905400  ........c.r.#.T.
+ 0040 03930400 e38662fe 97000000 e780c002  ......b.........
+ 0050 93030010 93821200 63847202 23805400  ........c.r.#.T.
+ 0060 03830400 e38662fe 97000000 e780c000  ......b.........
+ 0070 6ff01ffa 13041400 23208900 67800000  o.......# ..g...
+ 0080 b7020100 9382f2ff 23a05900 6ff05fff  ........#.Y.o._.
+Contents of section .riscv.attributes:
+ 0000 41190000 00726973 63760001 0f000000  A....riscv......
+ 0010 05727633 32693270 3000               .rv32i2p0.      
+
+Disassembly of section .text:
+
+00000000 <init>:
+   0:	000014b7          	lui	s1,0x1
+   4:	f0048493          	addi	s1,s1,-256 # f00 <__global_pointer$+0x670>
+   8:	110c0937          	lui	s2,0x110c0
+   c:	110809b7          	lui	s3,0x11080
+
+00000010 <loop>:
+  10:	00128293          	addi	t0,t0,1
+  14:	00028e63          	beqz	t0,30 <test_halfword>
+  18:	0054a023          	sw	t0,0(s1)
+  1c:	0004a303          	lw	t1,0(s1)
+  20:	0059a023          	sw	t0,0(s3) # 11080000 <__sp+0x11070000>
+  24:	fe6286e3          	beq	t0,t1,10 <loop>
+  28:	00000097          	auipc	ra,0x0
+  2c:	04c080e7          	jalr	76(ra) # 74 <fail>
+
+00000030 <test_halfword>:
+  30:	000103b7          	lui	t2,0x10
+  34:	00128293          	addi	t0,t0,1
+  38:	00728c63          	beq	t0,t2,50 <test_byte>
+  3c:	00549023          	sh	t0,0(s1)
+  40:	00049303          	lh	t1,0(s1)
+  44:	fe6286e3          	beq	t0,t1,30 <test_halfword>
+  48:	00000097          	auipc	ra,0x0
+  4c:	02c080e7          	jalr	44(ra) # 74 <fail>
+
+00000050 <test_byte>:
+  50:	10000393          	li	t2,256
+  54:	00128293          	addi	t0,t0,1
+  58:	02728463          	beq	t0,t2,80 <done>
+  5c:	00548023          	sb	t0,0(s1)
+  60:	00048303          	lb	t1,0(s1)
+  64:	fe6286e3          	beq	t0,t1,50 <test_byte>
+  68:	00000097          	auipc	ra,0x0
+  6c:	00c080e7          	jalr	12(ra) # 74 <fail>
+  70:	fa1ff06f          	j	10 <loop>
+
+00000074 <fail>:
+  74:	00140413          	addi	s0,s0,1
+  78:	00892023          	sw	s0,0(s2) # 110c0000 <__sp+0x110b0000>
+  7c:	00008067          	ret
+
+00000080 <done>:
+  80:	000102b7          	lui	t0,0x10
+  84:	fff28293          	addi	t0,t0,-1 # ffff <__global_pointer$+0xf76f>
+  88:	0059a023          	sw	t0,0(s3)
+  8c:	ff5ff06f          	j	80 <done>
