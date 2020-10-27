@@ -1,4 +1,4 @@
-use clap::{Arg, App};
+use clap::App;
 mod emu;
 
 fn main() {
@@ -34,8 +34,10 @@ fn main() {
         bin = String::from(b);
     }
     else {
-        println!("Warning: no binary file specified, using default mem.bin");
-        bin = String::from("mem.bin");
+        let mut line = String::new();
+        println!("Enter path to binary: ");
+        std::io::stdin().read_line(&mut line).unwrap();
+        bin = line;
     }
 
     let mut opts = emu::Options {

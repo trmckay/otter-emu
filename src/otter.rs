@@ -195,7 +195,7 @@ impl MCU {
             },
 
             rv32i::Operation::SLTI => {
-                self.rf.wr(ir.rd, (rs1 < ir.imm) as u32);
+                self.rf.wr(ir.rd, ((rs1 as i32) < (ir.imm as i32)) as u32);
                 self.incr_pc();
             },
 
@@ -250,7 +250,7 @@ impl MCU {
             },
 
             rv32i::Operation::SLT => {
-                self.rf.wr(ir.rd, (rs1 < rs2) as u32);
+                self.rf.wr(ir.rd, ((rs1 as i32) < (rs2 as i32)) as u32);
                 self.incr_pc();
             },
 
@@ -339,6 +339,12 @@ mod tests {
 
     #[test]
     fn test_all() {
+        // FAILING
+        // - 0x14, 20 SW
+        // - 0x1F, 31 LH
+        // - 0x20, 32 LB
+        // - 0x23, 35 SH
+        // - 0x24, 36 SB
         let mut do_break = false;
         let mut mcu = MCU::new();
         mcu.load_bin("res/programs/test_all/test_all.bin");
