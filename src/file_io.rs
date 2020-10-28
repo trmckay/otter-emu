@@ -33,7 +33,7 @@ mod test {
 
     #[test]
     fn bin_io() {
-        let bytes = file_to_bytes("res/programs/test_all/test_all.bin");
+        let bytes = file_to_bytes("res/programs/test/all/bin");
         // first word
         assert_eq!(0x37, bytes[0][0]);
         assert_eq!(0x08, bytes[0][1]);
