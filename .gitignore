@@ -1,4 +1,4 @@
 /target
 .vscode
-res/assembler/src
-res/assembler/build
+include/otter/build
+include/otter/src
