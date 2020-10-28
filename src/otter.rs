@@ -148,44 +148,54 @@ impl MCU {
             },
 
             rv32i::Operation::LB => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte));
+                let mut byte = self.mem.rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte);
+                // sign extend
+                if byte & 0b10000000 != 0 {
+                    byte |= 0xFFFFFF00;
+                }
+                self.rf.wr(ir.rd, byte);
                 self.incr_pc();
             },
 
             rv32i::Operation::LH => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord));
+                let mut halfword: u32 = self.mem.rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord);
+                // sign extend
+                if halfword & 0b1000000000000000 != 0 {
+                    halfword |= 0xFFFF0000;
+                }
+                self.rf.wr(ir.rd, halfword);
                 self.incr_pc();
             },
 
             rv32i::Operation::LW => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Word));
+                self.rf.wr(ir.rd, self.mem.rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Word));
                 self.incr_pc();
             },
 
             // unimplemented
             rv32i::Operation::LBU => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::Byte));
+                self.rf.wr(ir.rd, self.mem.rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte));
                 self.incr_pc();
             },
 
             // unimplemented
             rv32i::Operation::LHU => {
-                self.rf.wr(ir.rd, self.mem.rd(mem_addr, mem::Size::HalfWord));
+                self.rf.wr(ir.rd, self.mem.rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord));
                 self.incr_pc();
             },
 
             rv32i::Operation::SB => {
-                self.mem.wr(mem_addr, rs1, mem::Size::Byte);
+                self.mem.wr(mem_addr.overflowing_add(ir.imm).0, rs1, mem::Size::Byte);
                 self.incr_pc();
             },
 
             rv32i::Operation::SH => {
-                self.mem.wr(mem_addr, rs2, mem::Size::HalfWord);
+                self.mem.wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::HalfWord);
                 self.incr_pc();
             },
 
             rv32i::Operation::SW => {
-                self.mem.wr(mem_addr, rs2, mem::Size::Word);
+                self.mem.wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::Word);
                 self.incr_pc();
             },
 
@@ -347,7 +357,7 @@ mod tests {
         // - 0x24, 36 SB
         let mut do_break = false;
         let mut mcu = MCU::new();
-        mcu.load_bin("res/programs/test_all/test_all.bin");
+        mcu.load_bin("res/programs/test/all/bin");
         loop {
             // first test
             if mcu.pc == 0x18 {

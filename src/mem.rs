@@ -150,7 +150,7 @@ impl RAM {
             Size::Word => 2
         };
 
-                // read first byte
+        // read first byte
         let mut data = self.try_read_byte(addr, 0) as u32;
 
         // read second byte
