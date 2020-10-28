@@ -18,36 +18,8 @@ pub struct Options {
     pub log_to_f: bool
 }
 
-fn run_cli(mcu: &mut otter::MCU, opts: &mut Options) {
-    loop {
-
-        thread::sleep(time::Duration::from_millis(2));
-
-        let ir = mcu.fetch();
-        cli::refresh_ui(&mcu, &ir, opts);
-
-        if opts.bps.contains(&mcu.pc) && !opts.debug {
-            opts.debug = true;
-            cli::refresh_ui(&mcu, &ir, opts);
-            println!("\nHit breakpoint {:#010X}\nPress enter to step", mcu.pc);
-        }
-
-        if opts.debug {
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line).unwrap();
-            match &line[..] {
-                ":c\n" => opts.debug = false,
-                ":q\n" => return,
-                _ => ()
-            }
-        }
-
-        mcu.exec(ir.0);
-    }
-}
-
 pub fn emulate(opts: &mut Options) {
     let mut mcu = otter::MCU::new();
     mcu.load_bin(&opts.bin);
-    run_cli(&mut mcu, opts);
+    cli::run_cli(&mut mcu, opts);
 }

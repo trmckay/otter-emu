@@ -1,5 +1,47 @@
 use super::*;
 
+pub fn run_cli(mcu: &mut otter::MCU, opts: &mut Options) {
+
+    let mut last_pc = 0;
+    loop {
+
+        thread::sleep(time::Duration::from_millis(2));
+
+        let ir = mcu.fetch();
+        cli::refresh_ui(&mcu, &ir, opts);
+
+        if opts.bps.contains(&mcu.pc) && !opts.debug {
+            opts.debug = true;
+            cli::refresh_ui(&mcu, &ir, opts);
+            println!("\nHit breakpoint {:#010X}, came from {:#010X}\nPress enter to step", mcu.pc, last_pc);
+        }
+
+        if opts.debug {
+            let mut line = String::new();
+            std::io::stdin().read_line(&mut line).unwrap();
+            match line[..].trim_end_matches("\n") {
+                ":c" => opts.debug = false,
+                ":m" => {
+                    print!("addr: ");
+                    let mut line = String::new();
+                    std::io::stdin().read_line(&mut line).unwrap();
+                    match u32::from_str_radix(line.trim_start_matches("0x").trim_end_matches("\n"), 16) {
+                        Ok(val) => (println!("mem[{:#010X}] = {:#010X}",
+                            val, mcu.mem.rd(val, otter::mem::Size::Word))),
+                        Err(why) => eprintln!("Error: not a valid address: {}", why)
+                    }
+                    let mut line = String::new();
+                    std::io::stdin().read_line(&mut line).unwrap();
+                }
+                ":q" => return,
+                _ => ()
+            }
+        }
+        last_pc = mcu.pc;
+        mcu.exec(ir.0);
+    }
+}
+
 pub fn refresh_ui(mcu: &otter::MCU, ir: &(otter::rv32i::Instruction, u32), opts: &Options) {
         print!("\x1B[2J\x1B[1;1H"); // clear terminal
 
