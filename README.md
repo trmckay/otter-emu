@@ -63,7 +63,6 @@ Press enter to step
 ## Build requirements
 
 - rust
-- ncurses
 
 ## Build
 
