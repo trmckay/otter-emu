@@ -1,16 +1,16 @@
 init:
     li s1, 0xF00
-    li s2, 0x110C0000 # SSEG
-    li s3, 0x11080000 # LEDs
+    li s2, 0x110C0000
+    li s3, 0x11080000
 
 loop:
 
     test_word:
         addi t0, t0, 1
         beq t0, x0, test_halfword
-        sw t0, 0(s1)
-        lw t1, 0(s1)
-        sw t0, 0(s3)
+        sw t0, s1
+        lw t1, s1
+        sw t0, s3
         beq t0, t1, test_word
 
         call fail
@@ -19,8 +19,8 @@ loop:
         li t2, 0x10000
         addi t0, t0, 1
         beq t0, t2, test_byte
-        sh t0, 0(s1)
-        lh t1, 0(s1)
+        sh t0, s1
+        lh t1, s1
         beq t0, t1, test_halfword
         call fail
 
@@ -28,8 +28,8 @@ loop:
         li t2, 0x100
         addi t0, t0, 1
         beq t0, t2, done
-        sb t0, 0(s1)
-        lb t1, 0(s1)
+        sb t0, s1
+        lb t1, s1
         beq t0, t1, test_byte
         call fail
 
@@ -37,10 +37,10 @@ loop:
 
 fail:
     addi s0, s0, 1
-    sw s0, 0(s2)
+    sw s0, s2
     ret
 
 done:
     li t0, 0xFFFF
-    sw t0, 0(s3)
+    sw t0, s3
     j done

@@ -1,0 +1,39 @@
+
+build/program.elf:     file format elf32-littleriscv
+
+Contents of section .text:
+ 0000 37140000 130404f0 b7140000 938404f1  7...............
+ 0010 9302c0ff 23045400 038384ff 83438400  ....#.T......C..
+ 0020 9302d0ff 239c54fe 03138400 83d384ff  ....#.T.........
+ 0030 9302f0ff 23ac54fe 03238400 83a384ff  ....#.T..#......
+ 0040 6ff01ffd                             o...            
+Contents of section .riscv.attributes:
+ 0000 41190000 00726973 63760001 0f000000  A....riscv......
+ 0010 05727633 32693270 3000               .rv32i2p0.      
+
+Disassembly of section .text:
+
+00000000 <init>:
+   0:	00001437          	lui	s0,0x1
+   4:	f0040413          	addi	s0,s0,-256 # f00 <__global_pointer$+0x6bc>
+   8:	000014b7          	lui	s1,0x1
+   c:	f1048493          	addi	s1,s1,-240 # f10 <__global_pointer$+0x6cc>
+
+00000010 <byte>:
+  10:	ffc00293          	li	t0,-4
+  14:	00540423          	sb	t0,8(s0)
+  18:	ff848303          	lb	t1,-8(s1)
+  1c:	00844383          	lbu	t2,8(s0)
+
+00000020 <halfword>:
+  20:	ffd00293          	li	t0,-3
+  24:	fe549c23          	sh	t0,-8(s1)
+  28:	00841303          	lh	t1,8(s0)
+  2c:	ff84d383          	lhu	t2,-8(s1)
+
+00000030 <word>:
+  30:	fff00293          	li	t0,-1
+  34:	fe54ac23          	sw	t0,-8(s1)
+  38:	00842303          	lw	t1,8(s0)
+  3c:	ff84a383          	lw	t2,-8(s1)
+  40:	fd1ff06f          	j	10 <byte>
