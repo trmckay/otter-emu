@@ -1,6 +1,4 @@
 #[path = "./otter.rs"] mod otter;
-#[path = "./cli.rs"] mod cli;
-use std::{thread, time};
 
 const RF_NAMES: [&str; 32] = [
     "zero", "ra  ", "sp  ", "gp  ", "tp  ", "t0  ", "t1  ", "t2  ",
@@ -21,5 +19,4 @@ pub struct Options {
 pub fn emulate(opts: &mut Options) {
     let mut mcu = otter::MCU::new();
     mcu.load_bin(&opts.bin);
-    cli::run_cli(&mut mcu, opts);
 }

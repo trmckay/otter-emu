@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 // The size of the normal memory is 64 kB for the text and data sections.
 // Of course, the address space extends far beyond this.
-// MMIO is NOT implemented here. This is OTTER/board specific, so this functionality
-// is lifted to the emulator module.
+
 #[derive(Copy, Clone)]
 pub enum Size {
     Byte,
@@ -11,12 +10,15 @@ pub enum Size {
     Word,
 }
 
+// MMIO device
 struct IODevice {
     size: u32,
     contents: Vec<u8>
 }
 
 impl IODevice {
+
+    // create a new device
     pub fn new(size: u32) -> IODevice {
         IODevice {
             size: size,
@@ -25,12 +27,15 @@ impl IODevice {
     }
 }
 
+// holds all MMIO devices; a region of memory
 struct MMIO {
     addrs: Vec<u32>,
     devices: HashMap<u32, IODevice>
 }
 
 impl MMIO {
+
+    // make a new MMIO region
     pub fn new() -> MMIO {
         MMIO {
             addrs: Vec::new(),
@@ -38,6 +43,11 @@ impl MMIO {
         }
     }
 
+    // match an address to it's key in the ADDR -> DEVICE dictionary
+    // e.g. if you have a device at 0x2000 of size 100
+    // and a device at 0x2100 of size 100,
+    // match_addr_to_key(0x2008) returns 0x2000.
+    // this key can then be used to lookup the device in the dict
     fn match_addr_to_key(&self, addr: u32) -> Option<u32> {
         for key in &self.addrs {
             if addr >= *key {
@@ -52,12 +62,15 @@ impl MMIO {
         None
     }
 
+    // read the device at addr
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
         let dev_addr: u32;
+        // lookup the correct MMIO adress
         let device = match self.match_addr_to_key(addr) {
             None => return 0,
             Some(key) => {
                 dev_addr = key;
+                // lookup the device
                 match self.devices.get(&key) {
                     None => return 0,
                     Some(dev) => dev
@@ -65,6 +78,7 @@ impl MMIO {
             }
         };
 
+        // get the byte offset
         let offset = addr - dev_addr;
 
         let rv_size = match size {
@@ -73,6 +87,7 @@ impl MMIO {
             Size::Word => 2
         };
 
+        // read the data
         let mut data: u32 = device.contents[offset as usize] as u32;
         if rv_size >= 1 && device.size >= 2 {
             data += (device.contents[offset as usize + 1] as u32) << 8;
@@ -84,9 +99,11 @@ impl MMIO {
         data
     }
 
+    // write the data to a device at addr
     pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
         let dev_addr: u32;
 
+        // see MMIO.rd for lookup process
         let device = match self.match_addr_to_key(addr) {
             None => return,
             Some(key) => {
@@ -106,6 +123,7 @@ impl MMIO {
             Size::Word => 2
         };
 
+        // write the data
         device.contents[offset as usize] = (data & 0x000000FF) as u8;
         if rv_size >= 1 && device.size >= 2 {
                 device.contents[offset as usize + 1] = ((data & 0x0000FF00) >> 8) as u8;
@@ -117,12 +135,15 @@ impl MMIO {
     }
 }
 
+// main memory
 pub struct RAM {
     mem: Vec<Option<u8>>,
     pub size: u32
 }
 
 impl RAM {
+
+    // create a new main memory
     pub fn new(size: u32) -> RAM {
         RAM {
             mem: vec![None; size as usize],
@@ -130,6 +151,7 @@ impl RAM {
         }
     }
 
+    // try to read a byte, if unset it is read as zero
     fn try_read_byte(&self, addr: u32, offset: u8) -> u8 {
         let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
@@ -141,7 +163,7 @@ impl RAM {
     // Reads the value at address 'addr' as an unsigned 32 bit integer.
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
-    // Reading unset memory will return 0 and generate a warning
+    // Reading unset memory will return 0
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
 
         let rv_size = match size {
@@ -164,6 +186,7 @@ impl RAM {
         data
     }
 
+    // write some data
     fn wr(&mut self, addr: u32, data: u32, size: Size) {
 
         if addr >= self.size {
@@ -188,6 +211,7 @@ impl RAM {
     }
 }
 
+// a complete memory combines main memory and MMIO
 pub struct Memory {
     main: RAM,
     mmio: MMIO,
@@ -237,11 +261,12 @@ impl Memory {
         self.mmio_begin = self.mmio.addrs[0];
     }
 
+    // read from the correct region of memory
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
         if addr < self.main.size {
             self.main.rd(addr, size)
         }
-        else if addr >= self.mmio_begin { 
+        else if addr >= self.mmio_begin {
             self.mmio.rd(addr, size)
         }
         else {
@@ -249,6 +274,7 @@ impl Memory {
         }
     }
 
+    // write to the correct region of memory
     pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
         if addr < self.main.size {
             self.main.wr(addr, data, size);
