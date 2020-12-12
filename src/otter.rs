@@ -1,3 +1,5 @@
+use std::thread;
+
 #[path = "./mem.rs"] pub mod mem;
 #[path = "./rf.rs"] pub mod rf;
 #[path = "./rv32i.rs"] pub mod rv32i;
@@ -17,7 +19,7 @@ const SWITCHES_WIDTH: u32 = 2;
 pub struct MCU {
     pub pc: u32,
     pub mem: mem::Memory,
-    pub rf: rf::RegisterFile
+    pub rf: rf::RegisterFile,
 }
 
 impl MCU {
@@ -37,10 +39,21 @@ impl MCU {
         mcu
     }
 
+    pub fn from_bin(binary: &str) -> MCU {
+        let mut mcu = MCU::new();
+        mcu.load_bin(binary);
+        mcu
+    }
+
     // Loads a binary from the path "binary" into the main memory.
     // Text section begins at zero. Binary should not exceed 64 kB.
     pub fn load_bin(&mut self, binary: &str) {
         self.mem.prog( file_io::file_to_bytes(binary));
+    }
+
+    pub fn step(&mut self) {
+        let ir = self.fetch();
+        self.exec(ir.0);
     }
 
     fn incr_pc(&mut self) {
@@ -56,12 +69,12 @@ impl MCU {
         //    - check for read/write invalid mem location
     }
 
-    pub fn fetch(&self) -> (rv32i::Instruction, u32) {
+    fn fetch(&self) -> (rv32i::Instruction, u32) {
         let ir = self.mem.rd(self.pc, mem::Size::Word);
         (rv32i::decode(ir), ir)
     }
 
-    pub fn exec(&mut self, ir: rv32i::Instruction) {
+    fn exec(&mut self, ir: rv32i::Instruction) {
 
         let rs1: u32 = self.rf.rd(ir.rs1);
         let rs2: u32 = self.rf.rd(ir.rs2);
@@ -296,8 +309,8 @@ impl MCU {
         };
     }
 
-    pub fn leds(&self) -> [bool; 16] {
-        let mut leds = [false; 16];
+    pub fn leds(&self) -> Vec<bool> {
+        let mut leds = vec![false; 16];
         for i in 0..16 {
             //                    read a byte plus an offset          mask off the bit we care about
             //        |--------------------------------------------| |-------------------|
@@ -327,6 +340,12 @@ impl MCU {
         let updated_state: u32;
         updated_state = prev_state ^ (0b1 << index);
         self.mem.wr(SWITCHES_ADDR, updated_state, mem::Size::HalfWord);
+    }
+
+    pub fn set_switches(&mut self, switches: Vec<bool>) {
+        for i in 0..16 {
+            self.set_sw(i, switches[i]);
+        }
     }
 
     pub fn switches(&self) -> [bool; 16] {
@@ -422,5 +441,12 @@ mod tests {
             total += operand;
         }
         assert_eq!(total, mcu.rf.rd(1));
+    }
+
+    #[test]
+    fn stepping() {
+        let mut mcu = MCU::new();
+        mcu.load_bin("./res/programs/test/all/bin");
+        mcu.step();
     }
 }

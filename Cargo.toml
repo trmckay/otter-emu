@@ -9,6 +9,15 @@ edition = "2018"
 [dependencies]
 rand = "*"
 clap = "3.0.0-beta.2"
+glib = "0.10.3"
+
+[dependencies.gtk]
+version = "0.9.0"
+features = ["v3_16"]
+
+[dependencies.gio]
+version = ""
+features = ["v2_44"]
 
 [[bin]]
 name = "oemu"
