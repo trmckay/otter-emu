@@ -249,9 +249,7 @@ pub fn build_gui(application: &gtk::Application) {
     });
 
     // DUMP STATE BUTTON
-    let mcu = mcu_mutex.clone();
     dump_btn.connect_clicked(move |_| {});
-
     // READ MEMORY
     let builder_clone = builder.clone();
     let mcu = mcu_mutex.clone();
@@ -280,7 +278,7 @@ pub fn build_gui(application: &gtk::Application) {
             Some(mcu.sseg()),
             Some(mcu.rf()),
             Some(mcu.pc),
-            Some(mcu.fetch(|s| {}).0),
+            Some(mcu.fetch(|_s| {}).0),
         ))
         .unwrap();
     });
@@ -375,7 +373,7 @@ pub fn build_gui(application: &gtk::Application) {
                 Some(mcu.sseg()),
                 Some(mcu.rf()),
                 Some(mcu.pc),
-                Some(mcu.fetch(|s| {}).0),
+                Some(mcu.fetch(|_s| {}).0),
             ))
             .unwrap();
         } else {
@@ -409,7 +407,7 @@ pub fn build_gui(application: &gtk::Application) {
             Some(mcu.sseg()),
             Some(mcu.rf()),
             Some(mcu.pc),
-            Some(mcu.fetch(|s| {}).0),
+            Some(mcu.fetch(|_s| {}).0),
         ))
         .unwrap();
     });

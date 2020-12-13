@@ -1,6 +1,3 @@
-use mem::Memory;
-use rv32i::Instruction;
-
 #[path = "./file_io.rs"]
 pub mod file_io;
 #[path = "./mem.rs"]
@@ -10,7 +7,7 @@ pub mod rf;
 #[path = "./rv32i.rs"]
 pub mod rv32i;
 
-const MEM_SIZE: u32 = 0x10000;
+pub const MEM_SIZE: u32 = 0x10000;
 
 const LEDS_ADDR: u32 = 0x11080000;
 const LEDS_WIDTH: u32 = 2;
@@ -43,6 +40,7 @@ impl MCU {
         mcu
     }
 
+    #[allow(dead_code)]
     pub fn from_bin(binary: &str) -> MCU {
         let mut mcu = MCU::new();
         mcu.load_bin(binary);
@@ -65,20 +63,21 @@ impl MCU {
         self.exec(ir, |s| logger(s));
     }
 
-    // TODO: reset memory and register file as well
     pub fn reset(&mut self) {
         self.pc = 0;
         self.rf.reset();
     }
 
+    // dump the register file
     pub fn rf(&self) -> Vec<u32> {
-        let mut rf_dump = vec![0; 32];
-        for i in 0..31 {
-            rf_dump[i] = self.rf.rd(i as u32);
+        let mut rf_dump = vec![0; rv32i::WIDTH];
+        for (i, d) in rf_dump.iter_mut().enumerate() {
+            *d = self.rf.rd(i as u32);
         }
         rf_dump
     }
 
+    #[allow(dead_code)]
     pub fn rf_rd(&self, addr: u32) -> u32 {
         self.rf.rd(addr)
     }
@@ -92,7 +91,7 @@ impl MCU {
     }
 
     // validates the instruction, logging errors, returns a fixed instruction
-    pub fn validate<L>(ir: rv32i::Instruction, pc: u32, logger: L) -> Instruction
+    pub fn validate<L>(ir: rv32i::Instruction, pc: u32, logger: L) -> rv32i::Instruction
     where
         L: Fn(&str),
     {
@@ -126,7 +125,7 @@ impl MCU {
         ir
     }
 
-    pub fn fetch<L>(&self, logger: L) -> (rv32i::Instruction, u32)
+    pub fn fetch<L>(&self, _logger: L) -> (rv32i::Instruction, u32)
     where
         L: Fn(&str),
     {
@@ -134,7 +133,7 @@ impl MCU {
         (rv32i::decode(ir), ir)
     }
 
-    fn exec<L>(&mut self, ir: rv32i::Instruction, logger: L)
+    fn exec<L>(&mut self, ir: rv32i::Instruction, _logger: L)
     where
         L: Fn(&str),
     {
@@ -394,11 +393,10 @@ impl MCU {
 
     pub fn leds(&self) -> Vec<bool> {
         let mut leds = vec![false; 16];
-        for i in 0..16 {
+        for (i, l) in leds.iter_mut().enumerate() {
             //                    read a byte plus an offset          mask off the bit we care about
             //        |--------------------------------------------| |-------------------|
-            leds[i] =
-                (self.mem.rd(LEDS_ADDR + (i as u32) / 8, mem::Size::Byte) & (0b1 << (i % 8))) != 0
+            *l = (self.mem.rd(LEDS_ADDR + (i as u32) / 8, mem::Size::Byte) & (0b1 << (i % 8))) != 0
         }
         leds
     }
@@ -443,7 +441,7 @@ mod tests {
                     do_break = true;
                 }
             }
-            mcu.exec(mcu.fetch(|s| {}).0, |s| {});
+            mcu.exec(mcu.fetch(|_s| {}).0, |_s| {});
             // if ssegs are 0xffff, test-all fails
             assert!(mcu.sseg() != 0xFFFF);
         }
@@ -463,7 +461,7 @@ mod tests {
                 rd: 1,
                 imm: 2,
             },
-            |s| {},
+            |_s| {},
         );
         assert_eq!(2, mcu.rf.rd(1));
 
@@ -475,7 +473,7 @@ mod tests {
                 rd: 2,
                 imm: 3,
             },
-            |s| {},
+            |_s| {},
         );
 
         assert_eq!(2, mcu.rf.rd(1));
@@ -490,7 +488,7 @@ mod tests {
                 rd: 3,
                 imm: 0,
             },
-            |s| {},
+            |_s| {},
         );
 
         assert_eq!(2, mcu.rf.rd(1));
@@ -513,7 +511,7 @@ mod tests {
                     rd: 2,
                     imm: operand,
                 },
-                |s| {},
+                |_s| {},
             );
             mcu.exec(
                 rv32i::Instruction {
@@ -523,7 +521,7 @@ mod tests {
                     rd: 1,
                     imm: 0,
                 },
-                |s| {},
+                |_s| {},
             );
             total += operand;
         }
@@ -534,6 +532,6 @@ mod tests {
     fn stepping() {
         let mut mcu = MCU::new();
         mcu.load_bin("./res/programs/test/all/bin");
-        mcu.step(|s| {});
+        mcu.step(|_s| {});
     }
 }

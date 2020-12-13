@@ -1,4 +1,4 @@
-const RF_SIZE: u32 = 32;
+pub const RF_SIZE: u32 = 32;
 
 pub struct RegisterFile {
     mem: [u32; RF_SIZE as usize],
@@ -12,8 +12,8 @@ impl RegisterFile {
     }
 
     pub fn reset(&mut self) {
-        for i in 0..RF_SIZE {
-            self.mem[i as usize] = 0;
+        for i in self.mem.iter_mut() {
+            *i = 0;
         }
     }
 

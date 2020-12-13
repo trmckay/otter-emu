@@ -20,7 +20,7 @@ impl IODevice {
     // create a new device
     pub fn new(size: u32) -> IODevice {
         IODevice {
-            size: size,
+            size,
             contents: vec![0; size as usize],
         }
     }
@@ -146,7 +146,7 @@ impl RAM {
     pub fn new(size: u32) -> RAM {
         RAM {
             mem: vec![None; size as usize],
-            size: size,
+            size,
         }
     }
 
@@ -265,7 +265,7 @@ impl Memory {
         let device = IODevice::new(size);
         self.mmio.devices.insert(addr, device);
         self.mmio.addrs.push(addr);
-        self.mmio.addrs.sort();
+        self.mmio.addrs.sort_unstable();
         self.mmio_begin = self.mmio.addrs[0];
     }
 

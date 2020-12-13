@@ -3,8 +3,8 @@
 // returns a u128, but can be casted down if safe to do so
 pub fn vec_to_u32(bits: &[bool]) -> u32 {
     let mut total: u64 = 0;
-    for i in 0..bits.len() {
-        if bits[i] {
+    for (i, b) in bits.iter().enumerate() {
+        if *b {
             total += (0b1) << i;
         }
     }
@@ -18,8 +18,8 @@ pub fn vec_to_u32(bits: &[bool]) -> u32 {
 // * but in vec form, the LSB or bit 0 exists on the left so it can be in index 0
 pub fn u32_to_vec(num: u32) -> Vec<bool> {
     let mut bits: Vec<bool> = vec![false; 32];
-    for i in 0..32 {
-        bits[i] = (num & (0b1 << i)) != 0;
+    for (i, b) in bits.iter_mut().enumerate() {
+        *b = (num & (0b1 << i)) != 0;
     }
     bits
 }

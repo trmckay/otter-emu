@@ -1,6 +1,8 @@
 #[path = "./bitwise.rs"]
 mod bitwise;
 
+pub const WIDTH: usize = 32;
+
 #[derive(Debug)]
 pub enum Operation {
     // load upper
@@ -59,7 +61,7 @@ pub struct Instruction {
     pub imm: u32,
 }
 
-fn decode_j_imm(ir_bits: &Vec<bool>) -> u32 {
+fn decode_j_imm(ir_bits: &[bool]) -> u32 {
     let mut j_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 12][..], &ir_bits[12..=19]);
     j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![ir_bits[20]][..]);
     j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &ir_bits[21..=30]);
@@ -67,7 +69,7 @@ fn decode_j_imm(ir_bits: &Vec<bool>) -> u32 {
     bitwise::vec_to_u32(&j_imm_vec[..])
 }
 
-fn decode_b_imm(ir_bits: &Vec<bool>) -> u32 {
+fn decode_b_imm(ir_bits: &[bool]) -> u32 {
     let mut b_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[7..=7]);
     b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[25..=30]);
     b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[8..=11]);
@@ -75,40 +77,38 @@ fn decode_b_imm(ir_bits: &Vec<bool>) -> u32 {
     bitwise::vec_to_u32(&b_imm_vec[..])
 }
 
-fn decode_u_imm(ir_bits: &Vec<bool>) -> u32 {
+fn decode_u_imm(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&bitwise::vec_concat(&ir_bits[12..=31], &[false; 12])[..])
 }
 
-fn decode_i_imm(ir_bits: &Vec<bool>) -> u32 {
+fn decode_i_imm(ir_bits: &[bool]) -> u32 {
     let i_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[20..=31][..]);
     bitwise::vec_to_u32(&i_imm_vec[..])
 }
 
-fn decode_s_imm(ir_bits: &Vec<bool>) -> u32 {
+fn decode_s_imm(ir_bits: &[bool]) -> u32 {
     let mut s_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[25..=30]);
     s_imm_vec = bitwise::vec_concat(&s_imm_vec[..], &ir_bits[7..=11]);
     bitwise::vec_to_u32(&s_imm_vec[..])
 }
 
-// TODO: turn these into macros
-
-fn decode_funct3(ir_bits: &Vec<bool>) -> u32 {
+fn decode_funct3(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&ir_bits[12..=14])
 }
 
-fn decode_funct7(ir_bits: &Vec<bool>) -> u32 {
+fn decode_funct7(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&ir_bits[25..=31])
 }
 
-fn decode_rs1(ir_bits: &Vec<bool>) -> u32 {
+fn decode_rs1(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&ir_bits[15..=19])
 }
 
-fn decode_rs2(ir_bits: &Vec<bool>) -> u32 {
+fn decode_rs2(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&ir_bits[20..=24])
 }
 
-fn decode_rd(ir_bits: &Vec<bool>) -> u32 {
+fn decode_rd(ir_bits: &[bool]) -> u32 {
     bitwise::vec_to_u32(&ir_bits[7..=11])
 }
 
@@ -241,10 +241,10 @@ pub fn decode(ir: u32) -> Instruction {
 
     Instruction {
         op: op_type,
-        rs1: rs1,
-        rs2: rs2,
-        rd: rd,
-        imm: imm,
+        rs1,
+        rs2,
+        rd,
+        imm,
     }
 }
 
