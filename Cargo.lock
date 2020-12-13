@@ -534,6 +534,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
+name = "oemu"
+version = "0.2.0"
+dependencies = [
+ "clap",
+ "gio",
+ "glib",
+ "gtk",
+ "rand",
+ "webbrowser",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -544,18 +556,6 @@ name = "os_str_bytes"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ac6fe3538f701e339953a3ebbe4f39941aababa8a3f6964635b24ab526daeac"
-
-[[package]]
-name = "otter-emu"
-version = "0.1.0"
-dependencies = [
- "clap",
- "gio",
- "glib",
- "gtk",
- "rand",
- "webbrowser",
-]
 
 [[package]]
 name = "pango"

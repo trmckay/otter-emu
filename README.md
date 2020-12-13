@@ -16,14 +16,21 @@ Run binaries compiled for the RV32I architecture.
 - [ ] In-place register/memory editing
 - [ ] Integrated cross-compiler
 
-## Build requirements
+## Building
 
-### Linux (targeting Linux)
+### Linux
 
-- Rust
+- Rust (2018)
 - GTK
+- Glib
 
-### Windows
+Other dependencies are provided by Cargo.
 
-See the `gtk-rs`
-[documentation](https://gtk-rs.org/docs-src/tutorial/cross).
+`cargo build --release`
+
+### Other OS/architecture
+
+See `gtk-rs` [documentation](https://gtk-rs.org/docs-src/tutorial/cross)
+for targeting architectures other than 64-bit Linux.
+
+On Windows, it may be easier to run a Linux binary in WSL2 (detailed instructions to come).
