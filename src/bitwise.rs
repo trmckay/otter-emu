@@ -57,7 +57,10 @@ mod test {
         let n1 = 0x2CF8;
         let bits = u32_to_vec(n1);
         let r1 = vec_concat(&bits[0..4], &bits[8..12]);
-        assert_eq!(vec![false, false, true, true, false, false, false, true], r1);
+        assert_eq!(
+            vec![false, false, true, true, false, false, false, true],
+            r1
+        );
         assert_eq!(0x8C, vec_to_u32(&r1));
     }
 }

@@ -13,16 +13,15 @@ pub enum Size {
 // MMIO device
 struct IODevice {
     size: u32,
-    contents: Vec<u8>
+    contents: Vec<u8>,
 }
 
 impl IODevice {
-
     // create a new device
     pub fn new(size: u32) -> IODevice {
         IODevice {
             size: size,
-            contents: vec![0; size as usize]
+            contents: vec![0; size as usize],
         }
     }
 }
@@ -30,16 +29,15 @@ impl IODevice {
 // holds all MMIO devices; a region of memory
 struct MMIO {
     addrs: Vec<u32>,
-    devices: HashMap<u32, IODevice>
+    devices: HashMap<u32, IODevice>,
 }
 
 impl MMIO {
-
     // make a new MMIO region
     pub fn new() -> MMIO {
         MMIO {
             addrs: Vec::new(),
-            devices: HashMap::new()
+            devices: HashMap::new(),
         }
     }
 
@@ -53,8 +51,10 @@ impl MMIO {
             if addr >= *key {
                 match self.devices.get(&key) {
                     None => (),
-                    Some(device) => if addr < key + device.size {
-                        return Some(*key);
+                    Some(device) => {
+                        if addr < key + device.size {
+                            return Some(*key);
+                        }
                     }
                 }
             }
@@ -73,7 +73,7 @@ impl MMIO {
                 // lookup the device
                 match self.devices.get(&key) {
                     None => return 0,
-                    Some(dev) => dev
+                    Some(dev) => dev,
                 }
             }
         };
@@ -84,7 +84,7 @@ impl MMIO {
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
-            Size::Word => 2
+            Size::Word => 2,
         };
 
         // read the data
@@ -110,7 +110,7 @@ impl MMIO {
                 dev_addr = key;
                 match self.devices.get_mut(&key) {
                     None => return,
-                    Some(dev) => dev
+                    Some(dev) => dev,
                 }
             }
         };
@@ -120,13 +120,13 @@ impl MMIO {
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
-            Size::Word => 2
+            Size::Word => 2,
         };
 
         // write the data
         device.contents[offset as usize] = (data & 0x000000FF) as u8;
         if rv_size >= 1 && device.size >= 2 {
-                device.contents[offset as usize + 1] = ((data & 0x0000FF00) >> 8) as u8;
+            device.contents[offset as usize + 1] = ((data & 0x0000FF00) >> 8) as u8;
         }
         if rv_size >= 2 && device.size >= 4 {
             device.contents[offset as usize + 2] = ((data & 0x00FF0000) >> 16) as u8;
@@ -138,16 +138,15 @@ impl MMIO {
 // main memory
 pub struct RAM {
     mem: Vec<Option<u8>>,
-    pub size: u32
+    pub size: u32,
 }
 
 impl RAM {
-
     // create a new main memory
     pub fn new(size: u32) -> RAM {
         RAM {
             mem: vec![None; size as usize],
-            size: size
+            size: size,
         }
     }
 
@@ -156,7 +155,7 @@ impl RAM {
         let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
             None => 0,
-            Some(d) => d
+            Some(d) => d,
         }
     }
 
@@ -165,11 +164,10 @@ impl RAM {
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
     // Reading unset memory will return 0
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
-
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
-            Size::Word => 2
+            Size::Word => 2,
         };
 
         // read first byte
@@ -188,7 +186,6 @@ impl RAM {
 
     // write some data
     fn wr(&mut self, addr: u32, data: u32, size: Size) {
-
         if addr >= self.size {
             return;
         }
@@ -196,7 +193,7 @@ impl RAM {
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
-            Size::Word => 2
+            Size::Word => 2,
         };
 
         self.mem[addr as usize] = Some((data & 0x000000FF) as u8);
@@ -215,7 +212,7 @@ impl RAM {
 pub struct Memory {
     main: RAM,
     mmio: MMIO,
-    mmio_begin: u32
+    mmio_begin: u32,
 }
 
 impl Memory {
@@ -226,7 +223,7 @@ impl Memory {
         Memory {
             main: RAM::new(main_size),
             mmio: MMIO::new(),
-            mmio_begin: 0xFFFFFFFF
+            mmio_begin: 0xFFFFFFFF,
         }
     }
 
@@ -234,7 +231,11 @@ impl Memory {
     pub fn prog(&mut self, binary: Vec<Vec<u8>>) {
         let binary_size = binary.len() * 4;
         if binary_size >= self.main.size as usize {
-            panic!("Error: Memory: {} kB binary >= {} kB", binary_size / 1000 - 1, self.main.size / 1000 - 1);
+            panic!(
+                "Error: Memory: {} kB binary >= {} kB",
+                binary_size / 1000 - 1,
+                self.main.size / 1000 - 1
+            );
         }
 
         // loop through each word, enumerating as the word address
@@ -243,7 +244,11 @@ impl Memory {
             for (byte_offset, &byte) in word.iter().enumerate() {
                 // combine the word address and byte offset as {word_addr[31:2], byte_offset[1:0]}
                 // write the byte to this address at byte granularity
-                self.wr(((word_addr << 2) + byte_offset) as u32, byte as u32, Size::Byte)
+                self.wr(
+                    ((word_addr << 2) + byte_offset) as u32,
+                    byte as u32,
+                    Size::Byte,
+                )
             }
         }
     }
@@ -251,7 +256,10 @@ impl Memory {
     // map an IO device to 'addr' that contains 'size' bytes
     pub fn add_io(&mut self, addr: u32, size: u32) {
         if self.mmio.devices.contains_key(&addr) {
-            eprintln!("Error: Memory: cannot map new IO device to preoccupied address {:#010X}", addr);
+            eprintln!(
+                "Error: Memory: cannot map new IO device to preoccupied address {:#010X}",
+                addr
+            );
             return;
         }
         let device = IODevice::new(size);
@@ -265,11 +273,9 @@ impl Memory {
     pub fn rd(&self, addr: u32, size: Size) -> u32 {
         if addr < self.main.size {
             self.main.rd(addr, size)
-        }
-        else if addr >= self.mmio_begin {
+        } else if addr >= self.mmio_begin {
             self.mmio.rd(addr, size)
-        }
-        else {
+        } else {
             0
         }
     }
@@ -278,8 +284,7 @@ impl Memory {
     pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
         if addr < self.main.size {
             self.main.wr(addr, data, size);
-        }
-        else if addr >= self.mmio_begin {
+        } else if addr >= self.mmio_begin {
             self.mmio.wr(addr, data, size);
         }
     }
@@ -299,8 +304,8 @@ mod tests {
         let data_exp: u32 = 0x000000FF;
         mem.wr(addr, data_wr, Size::Byte);
         let data_rd: u32 = mem.rd(addr, Size::Byte);
-        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
-            data_wr, data_rd, data_exp };
+        println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
+        data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
 
@@ -312,8 +317,8 @@ mod tests {
         let data_exp: u32 = 0x000000FF;
         mem.wr(addr, data_wr, Size::Byte);
         let data_rd: u32 = mem.rd(addr, Size::Byte);
-        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
-            data_wr, data_rd, data_exp };
+        println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
+        data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
 
@@ -321,12 +326,12 @@ mod tests {
     fn halfword() {
         let mut mem = Memory::new(0x1000);
         let addr: u32 = 0x0321;
-        let data_wr: u32  = 0x0000FFFF;
+        let data_wr: u32 = 0x0000FFFF;
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
         let data_rd: u32 = mem.rd(addr, Size::HalfWord);
-        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
-            data_wr, data_rd, data_exp };
+        println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
+        data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
 
@@ -334,12 +339,12 @@ mod tests {
     fn halfword_overflow() {
         let mut mem = Memory::new(0x1000);
         let addr: u32 = 0x0000;
-        let data_wr: u32  = 0xFFFFFFFF;
+        let data_wr: u32 = 0xFFFFFFFF;
         let data_exp: u32 = 0x0000FFFF;
         mem.wr(addr, data_wr, Size::HalfWord);
         let data_rd: u32 = mem.rd(addr, Size::HalfWord);
-        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
-            data_wr, data_rd, data_exp };
+        println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
+        data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
 
@@ -347,27 +352,27 @@ mod tests {
     fn word() {
         let mut mem = Memory::new(0x1000);
         let addr: u32 = 0x0000;
-        let data_wr: u32  = 0x1234ABCD;
+        let data_wr: u32 = 0x1234ABCD;
         let data_exp: u32 = 0x1234ABCD;
         mem.wr(addr, data_wr, Size::Word);
         let data_rd: u32 = mem.rd(addr, Size::Word);
-        println!{"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
-            data_wr, data_rd, data_exp };
+        println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
+        data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
     }
 
     #[test]
     fn all() {
         let mut mem = Memory::new(0x1000);
-        for i in 0..mem.main.size/4 {
+        for i in 0..mem.main.size / 4 {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0x0FFFFFFF) as u32;
-            mem.wr(4*i, data_wr, Size::Word);
-            assert_eq!(data_wr, mem.rd(4*i, Size::Word));
+            mem.wr(4 * i, data_wr, Size::Word);
+            assert_eq!(data_wr, mem.rd(4 * i, Size::Word));
         }
-        for i in 0..mem.main.size/2 {
+        for i in 0..mem.main.size / 2 {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0xFFFF) as u32;
-            mem.wr(2*i, data_wr, Size::HalfWord);
-            assert_eq!(data_wr, mem.rd(2*i, Size::HalfWord));
+            mem.wr(2 * i, data_wr, Size::HalfWord);
+            assert_eq!(data_wr, mem.rd(2 * i, Size::HalfWord));
         }
         for i in 0..mem.main.size {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0xFF) as u32;
@@ -403,7 +408,7 @@ mod tests {
         let mut mem = Memory::new(0x1000);
         let mut binary: Vec<Vec<u8>> = vec![Vec::new(); 4];
         for i in 0..16 {
-            binary[(i/4)].push(i as u8);
+            binary[(i / 4)].push(i as u8);
         }
         mem.prog(binary);
         for i in 0..16 {
@@ -418,5 +423,4 @@ mod tests {
         mem.wr(0x1000, 12, Size::Byte);
         assert_eq!(12, mem.rd(0x1000, Size::Byte));
     }
-
 }

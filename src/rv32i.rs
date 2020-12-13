@@ -282,7 +282,7 @@ pub fn reg_name(index: u32) -> String {
         29 => "t4",
         30 => "t5",
         31 => "t6",
-        _ => "None"
+        _ => "None",
     })
 }
 

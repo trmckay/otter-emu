@@ -16,13 +16,21 @@ pub fn file_to_bytes(path: &str) -> Vec<Vec<u8>> {
 
     loop {
         let mut chunk = Vec::with_capacity(chunk_size);
-        let n = match file.by_ref().take(chunk_size as u64).read_to_end(&mut chunk) {
+        let n = match file
+            .by_ref()
+            .take(chunk_size as u64)
+            .read_to_end(&mut chunk)
+        {
             Err(why) => panic!("Error: File IO: could not read file {}: {}", path, why),
-            Ok(r) => r
+            Ok(r) => r,
         };
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         list_of_chunks.push(chunk);
-        if n < chunk_size { break; }
+        if n < chunk_size {
+            break;
+        }
     }
     list_of_chunks
 }

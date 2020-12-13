@@ -25,7 +25,7 @@ struct GUIMessage {
     new_rf: Vec<u32>,
     new_pc: u32,
     update_ir: bool,
-    new_ir: otter::rv32i::Instruction
+    new_ir: otter::rv32i::Instruction,
 }
 
 impl GUIMessage {
@@ -35,7 +35,7 @@ impl GUIMessage {
         sseg: Option<u16>,
         rf: Option<Vec<u32>>,
         pc: Option<u32>,
-        ir: Option<otter::rv32i::Instruction>
+        ir: Option<otter::rv32i::Instruction>,
     ) -> GUIMessage {
         let mut msg = GUIMessage {
             console_msg: String::from(""),
@@ -48,13 +48,13 @@ impl GUIMessage {
                 rs1: 0,
                 rs2: 0,
                 rd: 0,
-                imm: 0
+                imm: 0,
             },
             update_leds: false,
             update_pc: false,
             update_sseg: false,
             update_rf: false,
-            update_ir: false
+            update_ir: false,
         };
 
         if let Some(s) = print {
@@ -230,7 +230,7 @@ pub fn build_gui(application: &gtk::Application) {
             None,
             None,
             None,
-            None
+            None,
         ))
         .unwrap();
     });
@@ -250,8 +250,7 @@ pub fn build_gui(application: &gtk::Application) {
 
     // DUMP STATE BUTTON
     let mcu = mcu_mutex.clone();
-    dump_btn.connect_clicked(move |_| {
-    });
+    dump_btn.connect_clicked(move |_| {});
 
     // READ MEMORY
     let builder_clone = builder.clone();
@@ -260,7 +259,7 @@ pub fn build_gui(application: &gtk::Application) {
         let input: gtk::Entry = builder_clone.get_object("mem_addr_entry").unwrap();
         let addr = match util::parse_int(&input.get_text()) {
             Ok(n) => n,
-            _ => return
+            _ => return,
         };
         let mcu = mcu.lock().unwrap();
         let res = mcu.mem_rd(addr);
@@ -281,7 +280,7 @@ pub fn build_gui(application: &gtk::Application) {
             Some(mcu.sseg()),
             Some(mcu.rf()),
             Some(mcu.pc),
-            Some(mcu.fetch(|s| {}).0)
+            Some(mcu.fetch(|s| {}).0),
         ))
         .unwrap();
     });
@@ -313,7 +312,14 @@ pub fn build_gui(application: &gtk::Application) {
                     let tx_logger = tx.clone();
                     mcu.step(move |s| {
                         tx_logger
-                            .send(GUIMessage::gui_update(Some(s), None, None, None, None, None))
+                            .send(GUIMessage::gui_update(
+                                Some(s),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ))
                             .unwrap();
                     });
                 }
@@ -335,7 +341,7 @@ pub fn build_gui(application: &gtk::Application) {
                         Some(mcu.sseg()),
                         Some(mcu.rf()),
                         Some(mcu.pc),
-                        None
+                        None,
                     ))
                     .unwrap();
                 }
@@ -353,7 +359,14 @@ pub fn build_gui(application: &gtk::Application) {
             let tx_logger = tx.clone();
             mcu.step(move |s| {
                 tx_logger
-                    .send(GUIMessage::gui_update(Some(s), None, None, None, None, None))
+                    .send(GUIMessage::gui_update(
+                        Some(s),
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ))
                     .unwrap();
             });
             tx.send(GUIMessage::gui_update(
@@ -362,7 +375,7 @@ pub fn build_gui(application: &gtk::Application) {
                 Some(mcu.sseg()),
                 Some(mcu.rf()),
                 Some(mcu.pc),
-                Some(mcu.fetch(|s| {}).0)
+                Some(mcu.fetch(|s| {}).0),
             ))
             .unwrap();
         } else {
@@ -396,7 +409,7 @@ pub fn build_gui(application: &gtk::Application) {
             Some(mcu.sseg()),
             Some(mcu.rf()),
             Some(mcu.pc),
-            Some(mcu.fetch(|s| {}).0)
+            Some(mcu.fetch(|s| {}).0),
         ))
         .unwrap();
     });
