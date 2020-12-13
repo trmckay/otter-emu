@@ -10,6 +10,7 @@ edition = "2018"
 rand = "*"
 clap = "3.0.0-beta.2"
 glib = "0.10.3"
+webbrowser = "*"
 
 [dependencies.gtk]
 version = "0.9.0"

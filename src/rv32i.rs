@@ -1,23 +1,54 @@
-#[path = "./bitwise.rs"] mod bitwise;
+#[path = "./bitwise.rs"]
+mod bitwise;
 
 #[derive(Debug)]
 pub enum Operation {
     // load upper
-    LUI, AUIPC,
+    LUI,
+    AUIPC,
     // jump
-    JAL, JALR,
+    JAL,
+    JALR,
     // branch
-    BEQ, BNE, BLT, BGE, BLTU, BGEU,
+    BEQ,
+    BNE,
+    BLT,
+    BGE,
+    BLTU,
+    BGEU,
     // load
-    LB, LH, LW, LBU, LHU,
+    LB,
+    LH,
+    LW,
+    LBU,
+    LHU,
     // store
-    SB, SH, SW,
+    SB,
+    SH,
+    SW,
     // arithmetic w/ immediates
-    ADDI, SLTI, SLTIU, XORI, ORI, ANDI, SLLI, SRLI, SRAI,
+    ADDI,
+    SLTI,
+    SLTIU,
+    XORI,
+    ORI,
+    ANDI,
+    SLLI,
+    SRLI,
+    SRAI,
     // arithmetic
-    ADD, SUB, SLL, SLT, SLTU, XOR, SRL, SRA, OR, AND,
+    ADD,
+    SUB,
+    SLL,
+    SLT,
+    SLTU,
+    XOR,
+    SRL,
+    SRA,
+    OR,
+    AND,
     // no match
-    Invalid
+    Invalid,
 }
 
 pub struct Instruction {
@@ -25,7 +56,7 @@ pub struct Instruction {
     pub rs1: u32,
     pub rs2: u32,
     pub rd: u32,
-    pub imm: u32
+    pub imm: u32,
 }
 
 fn decode_j_imm(ir_bits: &Vec<bool>) -> u32 {
@@ -45,8 +76,7 @@ fn decode_b_imm(ir_bits: &Vec<bool>) -> u32 {
 }
 
 fn decode_u_imm(ir_bits: &Vec<bool>) -> u32 {
-    bitwise::vec_to_u32(
-        &bitwise::vec_concat(&ir_bits[12..=31], &[false; 12])[..])
+    bitwise::vec_to_u32(&bitwise::vec_concat(&ir_bits[12..=31], &[false; 12])[..])
 }
 
 fn decode_i_imm(ir_bits: &Vec<bool>) -> u32 {
@@ -99,26 +129,26 @@ pub fn decode(ir: u32) -> Instruction {
             op_type = Operation::LUI;
             imm = decode_u_imm(&ir_bits);
             rd = decode_rd(&ir_bits);
-        },
+        }
         // auipc
         0b0010111 => {
             op_type = Operation::AUIPC;
             imm = decode_u_imm(&ir_bits);
             rd = decode_rd(&ir_bits);
-        },
+        }
         // jal
         0b1101111 => {
             op_type = Operation::JAL;
             imm = decode_j_imm(&ir_bits);
             rd = decode_rd(&ir_bits);
-        },
+        }
         // jalr
         0b1100111 => {
             op_type = Operation::JALR;
             imm = decode_i_imm(&ir_bits);
             rs1 = decode_rs1(&ir_bits);
             rd = decode_rd(&ir_bits);
-        },
+        }
         // branch
         0b1100011 => {
             rs1 = decode_rs1(&ir_bits);
@@ -131,9 +161,9 @@ pub fn decode(ir: u32) -> Instruction {
                 0b101 => op_type = Operation::BGE,
                 0b110 => op_type = Operation::BLTU,
                 0b111 => op_type = Operation::BGEU,
-                    _ => ()
+                _ => (),
             }
-        },
+        }
         // load
         0b0000011 => {
             imm = decode_i_imm(&ir_bits);
@@ -145,9 +175,9 @@ pub fn decode(ir: u32) -> Instruction {
                 0b010 => op_type = Operation::LW,
                 0b100 => op_type = Operation::LBU,
                 0b101 => op_type = Operation::LHU,
-                    _ => ()
+                _ => (),
             }
-        },
+        }
         // store
         0b0100011 => {
             imm = decode_s_imm(&ir_bits);
@@ -157,9 +187,9 @@ pub fn decode(ir: u32) -> Instruction {
                 0b000 => op_type = Operation::SB,
                 0b001 => op_type = Operation::SH,
                 0b010 => op_type = Operation::SW,
-                    _ => ()
+                _ => (),
             }
-        },
+        }
         // arithmetic w/ immediate
         0b0010011 => {
             imm = decode_i_imm(&ir_bits);
@@ -176,11 +206,11 @@ pub fn decode(ir: u32) -> Instruction {
                 0b101 => match decode_funct7(&ir_bits) {
                     0b0000000 => op_type = Operation::SRLI,
                     0b0100000 => op_type = Operation::SRAI,
-                            _ => ()
+                    _ => (),
                 },
-                    _ => ()
+                _ => (),
             }
-        },
+        }
         // arithmetic
         0b0110011 => {
             rs1 = decode_rs1(&ir_bits);
@@ -190,25 +220,23 @@ pub fn decode(ir: u32) -> Instruction {
                 0b000 => match decode_funct7(&ir_bits) {
                     0b0000000 => op_type = Operation::ADD,
                     0b0100000 => op_type = Operation::SUB,
-                            _ => ()
+                    _ => (),
                 },
                 0b001 => op_type = Operation::SLL,
                 0b010 => op_type = Operation::SLT,
                 0b011 => op_type = Operation::SLTU,
                 0b100 => op_type = Operation::XOR,
-                0b101 => {
-                    match decode_funct7(&ir_bits) {
-                        0b0000000 => op_type = Operation::SRL,
-                        0b0100000 => op_type = Operation::SRA,
-                                _ => ()
-                    }
-                }
+                0b101 => match decode_funct7(&ir_bits) {
+                    0b0000000 => op_type = Operation::SRL,
+                    0b0100000 => op_type = Operation::SRA,
+                    _ => (),
+                },
                 0b110 => op_type = Operation::OR,
                 0b111 => op_type = Operation::AND,
-                    _ => ()
+                _ => (),
             }
         }
-        _ => ()
+        _ => (),
     }
 
     Instruction {
@@ -216,8 +244,46 @@ pub fn decode(ir: u32) -> Instruction {
         rs1: rs1,
         rs2: rs2,
         rd: rd,
-        imm: imm
+        imm: imm,
     }
+}
+
+pub fn reg_name(index: u32) -> String {
+    String::from(match index {
+        0 => "zero",
+        1 => "ra",
+        2 => "sp",
+        3 => "gp",
+        4 => "tp",
+        5 => "t0",
+        6 => "t1",
+        7 => "t2",
+        8 => "s0",
+        9 => "s1",
+        10 => "a0",
+        11 => "a1",
+        12 => "a2",
+        13 => "a3",
+        14 => "a4",
+        15 => "a5",
+        16 => "a6",
+        17 => "a7",
+        18 => "s2",
+        19 => "s3",
+        20 => "s4",
+        21 => "s5",
+        22 => "s6",
+        23 => "s7",
+        24 => "s8",
+        25 => "s9",
+        26 => "s10",
+        27 => "s11",
+        28 => "t3",
+        29 => "t4",
+        30 => "t5",
+        31 => "t6",
+        _ => "None"
+    })
 }
 
 // TODO: this needs more testing; ideally 1-2 tests per instruction

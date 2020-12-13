@@ -4,11 +4,16 @@ pub struct RegisterFile {
     mem: [u32; RF_SIZE as usize],
 }
 
-impl RegisterFile<> {
-
-    pub fn init<>() -> RegisterFile<> {
+impl RegisterFile {
+    pub fn init() -> RegisterFile {
         RegisterFile {
-            mem: [0; RF_SIZE as usize]
+            mem: [0; RF_SIZE as usize],
+        }
+    }
+
+    pub fn reset(&mut self) {
+        for i in 0..RF_SIZE {
+            self.mem[i as usize] = 0;
         }
     }
 
