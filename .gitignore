@@ -2,3 +2,4 @@
 .vscode
 include/otter/build
 include/otter/src
+release
