@@ -7,6 +7,15 @@ Run binaries compiled for the RV32I architecture.
 
 ![Screenshot](res/img/screenshot.png)
 
+## TODO
+- [x] GUI
+- [ ] CLI
+- [ ] Interrupt support
+- [x] Breakpoint support (backend)
+- [ ] Breakpoint support (frontend)
+- [ ] In-place register/memory editing
+- [ ] Integrated cross-compiler
+
 ## Build requirements
 
 ### Linux (targeting Linux)
