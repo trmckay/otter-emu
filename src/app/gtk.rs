@@ -6,10 +6,8 @@ use gtk::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-#[path = "./otter.rs"]
-mod otter;
-#[path = "./util.rs"]
-mod util;
+use super::super::otter;
+use super::super::util;
 
 const GUI_REFRESH_PERIOD: usize = 1;
 const IR_PERIOD_US: u64 = 2000;
@@ -25,7 +23,7 @@ struct GUIMessage {
     new_rf: Vec<u32>,
     new_pc: u32,
     update_ir: bool,
-    new_ir: otter::rv32i::Instruction,
+    new_ir: otter::Instruction,
 }
 
 impl GUIMessage {
@@ -35,7 +33,7 @@ impl GUIMessage {
         sseg: Option<u16>,
         rf: Option<Vec<u32>>,
         pc: Option<u32>,
-        ir: Option<otter::rv32i::Instruction>,
+        ir: Option<otter::Instruction>,
     ) -> GUIMessage {
         let mut msg = GUIMessage {
             console_msg: String::from(""),
@@ -43,8 +41,8 @@ impl GUIMessage {
             new_pc: 0,
             new_leds: vec![false; 16],
             new_rf: vec![0; 32],
-            new_ir: otter::rv32i::Instruction {
-                op: otter::rv32i::Operation::Invalid,
+            new_ir: otter::Instruction {
+                op: otter::Operation::Invalid,
                 rs1: 0,
                 rs2: 0,
                 rd: 0,
@@ -100,7 +98,7 @@ pub fn build_gui(application: &gtk::Application) {
     let running_mutex = Arc::from(Mutex::from(false));
 
     // load in glade source
-    let glade_src = include_str!("../res/gui/gtk_main.ui");
+    let glade_src = include_str!("../../res/gui/gtk_main.ui");
     let builder = gtk::Builder::from_string(glade_src);
 
     // main window
@@ -186,9 +184,9 @@ pub fn build_gui(application: &gtk::Application) {
             let rs1 = message.new_ir.rd;
             let rs2 = message.new_ir.rd;
             ir_type_buffer.set_text(&format!(" {:?} ", message.new_ir.op));
-            ir_rd_buffer.set_text(&format!(" x{} ({}) ", rd, otter::rv32i::reg_name(rd)));
-            ir_rs1_buffer.set_text(&format!(" x{} ({}) ", rs1, otter::rv32i::reg_name(rs1)));
-            ir_rs2_buffer.set_text(&format!(" x{} ({}) ", rs2, otter::rv32i::reg_name(rs2)));
+            ir_rd_buffer.set_text(&format!(" x{} ({}) ", rd, otter::reg_name(rd)));
+            ir_rs1_buffer.set_text(&format!(" x{} ({}) ", rs1, otter::reg_name(rs1)));
+            ir_rs2_buffer.set_text(&format!(" x{} ({}) ", rs2, otter::reg_name(rs2)));
             ir_imm_buffer.set_text(&format!(" {:#010X} ", message.new_ir.imm));
         };
         glib::Continue(true)
@@ -255,7 +253,7 @@ pub fn build_gui(application: &gtk::Application) {
     let mcu = mcu_mutex.clone();
     mem_rd_btn.connect_clicked(move |_| {
         let input: gtk::Entry = builder_clone.get_object("mem_addr_entry").unwrap();
-        let addr = match util::parse_int(&input.get_text()) {
+        let addr = match util::parse::parse_int(&input.get_text()) {
             Ok(n) => n,
             _ => return,
         };

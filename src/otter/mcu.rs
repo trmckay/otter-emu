@@ -1,11 +1,7 @@
-#[path = "./file_io.rs"]
-pub mod file_io;
-#[path = "./mem.rs"]
-pub mod mem;
-#[path = "./rf.rs"]
-pub mod rf;
-#[path = "./rv32i.rs"]
-pub mod rv32i;
+use super::devices::rf;
+use super::devices::mem;
+use super::rv32i::*;
+use super::super::util::*;
 
 pub const MEM_SIZE: u32 = 0x10000;
 
@@ -50,7 +46,7 @@ impl MCU {
     // Loads a binary from the path "binary" into the main memory.
     // Text section begins at zero. Binary should not exceed 64 kB.
     pub fn load_bin(&mut self, binary: &str) {
-        self.mem.prog(file_io::file_to_bytes(binary));
+        self.mem.prog(io::file_to_bytes(binary));
     }
 
     // step once; closure defines logging method
@@ -70,7 +66,7 @@ impl MCU {
 
     // dump the register file
     pub fn rf(&self) -> Vec<u32> {
-        let mut rf_dump = vec![0; rv32i::WIDTH];
+        let mut rf_dump = vec![0; rf::RF_SIZE as usize];
         for (i, d) in rf_dump.iter_mut().enumerate() {
             *d = self.rf.rd(i as u32);
         }
@@ -91,14 +87,14 @@ impl MCU {
     }
 
     // validates the instruction, logging errors, returns a fixed instruction
-    pub fn validate<L>(ir: rv32i::Instruction, pc: u32, logger: L) -> rv32i::Instruction
+    pub fn validate<L>(ir: decode::Instruction, pc: u32, logger: L) -> decode::Instruction
     where
         L: Fn(&str),
     {
         //    - check mem read value on LOAD
         //    - check jump/branch target within text
-        let nop = rv32i::Instruction {
-            op: rv32i::Operation::ADD,
+        let nop = decode::Instruction {
+            op: decode::Operation::ADD,
             rs1: 0,
             rs2: 0,
             rd: 0,
@@ -106,7 +102,7 @@ impl MCU {
         };
 
         // check for invalid instruction
-        if let rv32i::Operation::Invalid = ir.op {
+        if let decode::Operation::Invalid = ir.op {
             logger(&format!(
                 "[{:#010X}] Error: Skipping invalid instruction.",
                 pc
@@ -125,15 +121,15 @@ impl MCU {
         ir
     }
 
-    pub fn fetch<L>(&self, _logger: L) -> (rv32i::Instruction, u32)
+    pub fn fetch<L>(&self, _logger: L) -> (decode::Instruction, u32)
     where
         L: Fn(&str),
     {
         let ir = self.mem.rd(self.pc, mem::Size::Word);
-        (rv32i::decode(ir), ir)
+        (decode::decode(ir), ir)
     }
 
-    fn exec<L>(&mut self, ir: rv32i::Instruction, _logger: L)
+    fn exec<L>(&mut self, ir: decode::Instruction, _logger: L)
     where
         L: Fn(&str),
     {
@@ -148,31 +144,31 @@ impl MCU {
         // operations on memories should be with unsigned integers
         // i.e. numbers are always stored/retrieved as unsigned, then interpreted/casted
         match ir.op {
-            rv32i::Operation::Invalid => {
+            decode::Operation::Invalid => {
                 panic!("Error: Instruction was corrupted.",);
             }
 
-            rv32i::Operation::LUI => {
+            decode::Operation::LUI => {
                 self.rf.wr(ir.rd, ir.imm);
                 self.incr_pc();
             }
 
-            rv32i::Operation::AUIPC => {
+            decode::Operation::AUIPC => {
                 self.rf.wr(ir.rd, self.pc.overflowing_add(ir.imm).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::JAL => {
+            decode::Operation::JAL => {
                 self.rf.wr(ir.rd, self.pc as u32 + 4);
                 self.pc = jump_target;
             }
 
-            rv32i::Operation::JALR => {
+            decode::Operation::JALR => {
                 self.rf.wr(ir.rd, self.pc as u32 + 4);
                 self.pc = jalr_target;
             }
 
-            rv32i::Operation::BEQ => {
+            decode::Operation::BEQ => {
                 if rs1 as i32 == rs2 as i32 {
                     self.pc = branch_target;
                 } else {
@@ -180,7 +176,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::BNE => {
+            decode::Operation::BNE => {
                 if rs1 as i32 != rs2 as i32 {
                     self.pc = branch_target;
                 } else {
@@ -188,7 +184,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::BLT => {
+            decode::Operation::BLT => {
                 if (rs1 as i32) < (rs2 as i32) {
                     self.pc = branch_target;
                 } else {
@@ -196,7 +192,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::BGE => {
+            decode::Operation::BGE => {
                 if (rs1 as i32) >= (rs2 as i32) {
                     self.pc = branch_target;
                 } else {
@@ -204,7 +200,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::BLTU => {
+            decode::Operation::BLTU => {
                 if rs1 < rs2 {
                     self.pc = branch_target;
                 } else {
@@ -212,7 +208,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::BGEU => {
+            decode::Operation::BGEU => {
                 if rs1 >= rs2 {
                     self.pc = branch_target;
                 } else {
@@ -220,7 +216,7 @@ impl MCU {
                 }
             }
 
-            rv32i::Operation::LB => {
+            decode::Operation::LB => {
                 let mut byte = self
                     .mem
                     .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte);
@@ -232,7 +228,7 @@ impl MCU {
                 self.incr_pc();
             }
 
-            rv32i::Operation::LH => {
+            decode::Operation::LH => {
                 let mut halfword: u32 = self
                     .mem
                     .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord);
@@ -244,7 +240,7 @@ impl MCU {
                 self.incr_pc();
             }
 
-            rv32i::Operation::LW => {
+            decode::Operation::LW => {
                 self.rf.wr(
                     ir.rd,
                     self.mem
@@ -254,7 +250,7 @@ impl MCU {
             }
 
             // unimplemented
-            rv32i::Operation::LBU => {
+            decode::Operation::LBU => {
                 self.rf.wr(
                     ir.rd,
                     self.mem
@@ -264,7 +260,7 @@ impl MCU {
             }
 
             // unimplemented
-            rv32i::Operation::LHU => {
+            decode::Operation::LHU => {
                 self.rf.wr(
                     ir.rd,
                     self.mem
@@ -273,118 +269,118 @@ impl MCU {
                 self.incr_pc();
             }
 
-            rv32i::Operation::SB => {
+            decode::Operation::SB => {
                 self.mem
                     .wr(mem_addr.overflowing_add(ir.imm).0, rs1, mem::Size::Byte);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SH => {
+            decode::Operation::SH => {
                 self.mem
                     .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::HalfWord);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SW => {
+            decode::Operation::SW => {
                 self.mem
                     .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::Word);
                 self.incr_pc();
             }
 
-            rv32i::Operation::ADDI => {
+            decode::Operation::ADDI => {
                 self.rf.wr(ir.rd, rs1.overflowing_add(ir.imm).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLTI => {
+            decode::Operation::SLTI => {
                 self.rf.wr(ir.rd, ((rs1 as i32) < (ir.imm as i32)) as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLTIU => {
+            decode::Operation::SLTIU => {
                 self.rf.wr(ir.rd, (rs1 < ir.imm) as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::XORI => {
+            decode::Operation::XORI => {
                 self.rf.wr(ir.rd, rs1 ^ ir.imm);
                 self.incr_pc();
             }
 
-            rv32i::Operation::ORI => {
+            decode::Operation::ORI => {
                 self.rf.wr(ir.rd, rs1 | ir.imm);
                 self.incr_pc();
             }
 
-            rv32i::Operation::ANDI => {
+            decode::Operation::ANDI => {
                 self.rf.wr(ir.rd, rs1 & ir.imm);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLLI => {
+            decode::Operation::SLLI => {
                 self.rf.wr(ir.rd, rs1.overflowing_shl(ir.imm).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SRLI => {
+            decode::Operation::SRLI => {
                 self.rf.wr(ir.rd, rs1.overflowing_shr(ir.imm).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SRAI => {
+            decode::Operation::SRAI => {
                 self.rf
                     .wr(ir.rd, (rs1 as i32).overflowing_shr(ir.imm).0 as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::ADD => {
+            decode::Operation::ADD => {
                 self.rf.wr(ir.rd, rs1.overflowing_add(rs2).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SUB => {
+            decode::Operation::SUB => {
                 self.rf.wr(ir.rd, rs1.overflowing_sub(rs2).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLL => {
+            decode::Operation::SLL => {
                 self.rf
                     .wr(ir.rd, (rs1 as i32).overflowing_shl(rs2).0 as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLT => {
+            decode::Operation::SLT => {
                 self.rf.wr(ir.rd, ((rs1 as i32) < (rs2 as i32)) as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SLTU => {
+            decode::Operation::SLTU => {
                 self.rf.wr(ir.rd, (rs1 < rs2) as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::XOR => {
+            decode::Operation::XOR => {
                 self.rf.wr(ir.rd, rs1 ^ rs2);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SRL => {
+            decode::Operation::SRL => {
                 self.rf.wr(ir.rd, rs1.overflowing_shr(rs2).0);
                 self.incr_pc();
             }
 
-            rv32i::Operation::SRA => {
+            decode::Operation::SRA => {
                 self.rf
                     .wr(ir.rd, (rs1 as i32).overflowing_shr(rs2).0 as u32);
                 self.incr_pc();
             }
 
-            rv32i::Operation::OR => {
+            decode::Operation::OR => {
                 self.rf.wr(ir.rd, rs1 | rs2);
                 self.incr_pc();
             }
 
-            rv32i::Operation::AND => {
+            decode::Operation::AND => {
                 self.rf.wr(ir.rd, rs1 & rs2);
                 self.incr_pc();
             }
@@ -454,8 +450,8 @@ mod tests {
         //addi x1, x0, 2
         //addi x2, x0, 3
         mcu.exec(
-            rv32i::Instruction {
-                op: rv32i::Operation::ADDI,
+            decode::Instruction {
+                op: decode::Operation::ADDI,
                 rs1: 0,
                 rs2: 0,
                 rd: 1,
@@ -466,8 +462,8 @@ mod tests {
         assert_eq!(2, mcu.rf.rd(1));
 
         mcu.exec(
-            rv32i::Instruction {
-                op: rv32i::Operation::ADDI,
+            decode::Instruction {
+                op: decode::Operation::ADDI,
                 rs1: 0,
                 rs2: 0,
                 rd: 2,
@@ -481,8 +477,8 @@ mod tests {
 
         // add x3, x1, x2
         mcu.exec(
-            rv32i::Instruction {
-                op: rv32i::Operation::ADD,
+            decode::Instruction {
+                op: decode::Operation::ADD,
                 rs1: 1,
                 rs2: 2,
                 rd: 3,
@@ -504,8 +500,8 @@ mod tests {
         for _i in 0..32 {
             let operand: u32 = rand::thread_rng().gen_range(0, 0xFF) as u32;
             mcu.exec(
-                rv32i::Instruction {
-                    op: rv32i::Operation::ADDI,
+                decode::Instruction {
+                    op: decode::Operation::ADDI,
                     rs1: 0,
                     rs2: 0,
                     rd: 2,
@@ -514,8 +510,8 @@ mod tests {
                 |_s| {},
             );
             mcu.exec(
-                rv32i::Instruction {
-                    op: rv32i::Operation::ADD,
+                decode::Instruction {
+                    op: decode::Operation::ADD,
                     rs1: 1,
                     rs2: 2,
                     rd: 1,

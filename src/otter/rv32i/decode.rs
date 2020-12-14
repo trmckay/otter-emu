@@ -1,5 +1,4 @@
-#[path = "./bitwise.rs"]
-mod bitwise;
+use super::bitwise;
 
 pub const WIDTH: usize = 32;
 
