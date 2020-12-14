@@ -2,6 +2,130 @@
 <!-- Generated with glade 3.38.2 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
+  <object class="GtkWindow" id="bp_window">
+    <property name="can-focus">False</property>
+    <child>
+      <object class="GtkBox" id="bp_frame">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkHeaderBar" id="bp_header">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="title" translatable="yes">Breakpoints</property>
+            <property name="has-subtitle">False</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox" id="bp_box">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-start">20</property>
+            <property name="margin-end">20</property>
+            <property name="margin-top">20</property>
+            <property name="margin-bottom">20</property>
+            <property name="vexpand">True</property>
+            <child>
+              <object class="GtkBox" id="add_bp_box">
+                <property name="visible">True</property>
+                <property name="can-focus">False</property>
+                <property name="halign">center</property>
+                <property name="valign">center</property>
+                <property name="margin-end">20</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkEntry" id="mem_addr_entry1">
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="margin-left">10</property>
+                    <property name="margin-right">10</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <property name="margin-top">20</property>
+                    <property name="margin-bottom">10</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="read_mem_btn1">
+                    <property name="label" translatable="yes">Add</property>
+                    <property name="width-request">100</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="halign">center</property>
+                    <property name="valign">center</property>
+                    <property name="margin-left">10</property>
+                    <property name="margin-right">10</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <property name="margin-top">10</property>
+                    <property name="margin-bottom">10</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkScrolledWindow" id="bp_list_container">
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="hexpand">True</property>
+                <property name="vexpand">True</property>
+                <property name="shadow-type">in</property>
+                <child>
+                  <object class="GtkViewport" id="bp_list_scroller">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="hexpand">True</property>
+                    <property name="vexpand">True</property>
+                    <child>
+                      <object class="GtkListBox" id="bp_list">
+                        <property name="visible">True</property>
+                        <property name="can-focus">False</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+  </object>
   <object class="GtkTextBuffer" id="console_buffer">
     <property name="text" translatable="yes">Starting OEMU.
 Load a binary to begin emulation.</property>
@@ -17,7 +141,7 @@ Load a binary to begin emulation.</property>
           <object class="GtkHeaderBar" id="console_header">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
-            <property name="title" translatable="yes">OEMU Console</property>
+            <property name="title" translatable="yes">Console</property>
             <property name="has-subtitle">False</property>
             <property name="show-close-button">True</property>
             <child>
@@ -1293,10 +1417,8 @@ Load a binary to begin emulation.</property>
                     <property name="can-focus">False</property>
                     <property name="halign">end</property>
                     <property name="valign">center</property>
-                    <property name="margin-left">20</property>
-                    <property name="margin-right">20</property>
-                    <property name="margin-start">20</property>
-                    <property name="margin-end">20</property>
+                    <property name="margin-start">40</property>
+                    <property name="margin-end">40</property>
                     <property name="margin-top">20</property>
                     <property name="margin-bottom">20</property>
                     <property name="orientation">vertical</property>
@@ -1310,8 +1432,6 @@ Load a binary to begin emulation.</property>
                         <property name="receives-default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="margin-left">20</property>
-                        <property name="margin-right">20</property>
                         <property name="margin-start">20</property>
                         <property name="margin-end">20</property>
                         <property name="margin-top">5</property>
@@ -1333,8 +1453,6 @@ Load a binary to begin emulation.</property>
                         <property name="receives-default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="margin-left">20</property>
-                        <property name="margin-right">20</property>
                         <property name="margin-start">20</property>
                         <property name="margin-end">20</property>
                         <property name="margin-top">5</property>
@@ -1356,8 +1474,6 @@ Load a binary to begin emulation.</property>
                         <property name="receives-default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="margin-left">20</property>
-                        <property name="margin-right">20</property>
                         <property name="margin-start">20</property>
                         <property name="margin-end">20</property>
                         <property name="margin-top">5</property>
@@ -1379,8 +1495,6 @@ Load a binary to begin emulation.</property>
                         <property name="receives-default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="margin-left">20</property>
-                        <property name="margin-right">20</property>
                         <property name="margin-start">20</property>
                         <property name="margin-end">20</property>
                         <property name="margin-top">5</property>
@@ -1401,8 +1515,6 @@ Load a binary to begin emulation.</property>
                         <property name="receives-default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
-                        <property name="margin-left">20</property>
-                        <property name="margin-right">20</property>
                         <property name="margin-start">20</property>
                         <property name="margin-end">20</property>
                         <property name="margin-top">5</property>
