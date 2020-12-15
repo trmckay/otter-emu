@@ -61,18 +61,18 @@ pub struct Instruction {
 }
 
 fn decode_j_imm(ir_bits: &[bool]) -> u32 {
-    let mut j_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 12][..], &ir_bits[12..=19]);
-    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![ir_bits[20]][..]);
-    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &ir_bits[21..=30]);
-    j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![false; 1][..]);
+    let j_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 12][..], &ir_bits[12..=19]);
+    let j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![ir_bits[20]][..]);
+    let j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &ir_bits[21..=30]);
+    let j_imm_vec = bitwise::vec_concat(&j_imm_vec[..], &vec![false; 1][..]);
     bitwise::vec_to_u32(&j_imm_vec[..])
 }
 
 fn decode_b_imm(ir_bits: &[bool]) -> u32 {
-    let mut b_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[7..=7]);
-    b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[25..=30]);
-    b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[8..=11]);
-    b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &vec![false; 1][..]);
+    let b_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[7..=7]);
+    let b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[25..=30]);
+    let b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &ir_bits[8..=11]);
+    let b_imm_vec = bitwise::vec_concat(&b_imm_vec[..], &vec![false; 1][..]);
     bitwise::vec_to_u32(&b_imm_vec[..])
 }
 
@@ -86,8 +86,8 @@ fn decode_i_imm(ir_bits: &[bool]) -> u32 {
 }
 
 fn decode_s_imm(ir_bits: &[bool]) -> u32 {
-    let mut s_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[25..=30]);
-    s_imm_vec = bitwise::vec_concat(&s_imm_vec[..], &ir_bits[7..=11]);
+    let s_imm_vec = bitwise::vec_concat(&vec![ir_bits[31]; 20][..], &ir_bits[25..=30]);
+    let s_imm_vec = bitwise::vec_concat(&s_imm_vec[..], &ir_bits[7..=11]);
     bitwise::vec_to_u32(&s_imm_vec[..])
 }
 

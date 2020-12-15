@@ -1,7 +1,7 @@
-use super::devices::rf;
-use super::devices::mem;
-use super::rv32i::*;
 use super::super::util::*;
+use super::devices::mem;
+use super::devices::rf;
+use super::rv32i::*;
 
 pub const MEM_SIZE: u32 = 0x10000;
 

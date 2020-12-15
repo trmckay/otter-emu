@@ -2,12 +2,12 @@ extern crate gio;
 extern crate glib;
 extern crate gtk;
 extern crate webbrowser;
+use super::super::otter;
+use super::super::util;
 use gtk::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use super::super::otter;
-use super::super::util;
 
 const GUI_REFRESH_PERIOD: usize = 1;
 const IR_PERIOD_US: u64 = 2000;

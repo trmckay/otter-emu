@@ -1,2 +1,2 @@
-pub mod decode;
 mod bitwise;
+pub mod decode;

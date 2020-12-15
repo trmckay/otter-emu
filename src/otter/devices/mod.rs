@@ -1,2 +1,2 @@
-pub mod rf;
 pub mod mem;
+pub mod rf;
