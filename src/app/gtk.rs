@@ -297,7 +297,7 @@ pub fn build_gui(application: &gtk::Application) {
     clear_bp_btn.connect_clicked(move |_| {
         bps_clone.lock().unwrap().clear();
         let list: gtk::ListBox = builder_clone.get_object("bp_list").unwrap();
-        list.foreach(|w| {list.remove(w)});
+        list.foreach(|w| list.remove(w));
     });
 
     // ABOUT BUTTON
@@ -309,7 +309,9 @@ pub fn build_gui(application: &gtk::Application) {
     let mcu = mcu_mutex.clone();
     let tx_logger = tx_main.clone();
     dump_btn.connect_clicked(move |_| {
-        mcu.lock().unwrap().dump("oemu.dump", |s| {GUIMessage::log_console(&tx_logger, s)});
+        mcu.lock()
+            .unwrap()
+            .dump("oemu.dump", |s| GUIMessage::log_console(&tx_logger, s));
     });
 
     // READ MEMORY

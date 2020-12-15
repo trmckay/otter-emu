@@ -151,10 +151,19 @@ impl RAM {
     }
 
     // try to read a byte, if unset it is read as zero
-    fn try_read_byte<L>(&self, addr: u32, offset: u8, logger: L) -> u8 where L: Fn(&str) {
+    fn try_read_byte<L>(&self, addr: u32, offset: u8, logger: L) -> u8
+    where
+        L: Fn(&str),
+    {
         let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
-            None => {logger(&format!("Warning: Read unset memory at {:#010X}.", addr + (offset as u32))); 0 },
+            None => {
+                logger(&format!(
+                    "Warning: Read unset memory at {:#010X}.",
+                    addr + (offset as u32)
+                ));
+                0
+            }
             Some(d) => d,
         }
     }
@@ -163,7 +172,10 @@ impl RAM {
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
     // Reading unset memory will return 0
-    pub fn rd<L>(&self, addr: u32, size: Size, logger: L) -> u32 where L: Fn(&str) {
+    pub fn rd<L>(&self, addr: u32, size: Size, logger: L) -> u32
+    where
+        L: Fn(&str),
+    {
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
@@ -248,7 +260,7 @@ impl Memory {
                     ((word_addr << 2) + byte_offset) as u32,
                     byte as u32,
                     Size::Byte,
-                    |_s| {}
+                    |_s| {},
                 )
             }
         }
@@ -272,26 +284,36 @@ impl Memory {
 
     // read from the correct region of memory
     pub fn rd<L>(&self, addr: u32, size: Size, logger: L) -> u32
-        where L: Fn(&str)
+    where
+        L: Fn(&str),
     {
         if addr < self.main.size {
             self.main.rd(addr, size, logger)
         } else if addr >= self.mmio_begin {
             self.mmio.rd(addr, size)
         } else {
-            logger(&format!("Error: Reading from invalid memory address {:#010X}.", addr));
+            logger(&format!(
+                "Error: Reading from invalid memory address {:#010X}.",
+                addr
+            ));
             0
         }
     }
 
     // write to the correct region of memory
-    pub fn wr<L>(&mut self, addr: u32, data: u32, size: Size, logger: L) where L: Fn(&str) {
+    pub fn wr<L>(&mut self, addr: u32, data: u32, size: Size, logger: L)
+    where
+        L: Fn(&str),
+    {
         if addr < self.main.size {
             self.main.wr(addr, data, size);
         } else if addr >= self.mmio_begin {
             self.mmio.wr(addr, data, size);
         } else {
-            logger(&format!("Error: Writing to invalid memory address {:#010X}.", addr));
+            logger(&format!(
+                "Error: Writing to invalid memory address {:#010X}.",
+                addr
+            ));
         }
     }
 }

@@ -53,17 +53,31 @@ impl MCU {
         self.mem.prog(io::file_to_bytes(binary));
     }
 
-    pub fn dump<L>(&self, path: &str, logger: L) where L: Fn(&str) {
+    pub fn dump<L>(&self, path: &str, logger: L)
+    where
+        L: Fn(&str),
+    {
         let path = Path::new(path);
         // Open a file in write-only mode, returns `io::Result<File>`
         let mut file = match File::create(&path) {
-            Err(why) => { logger(&format!("Error: Could not open file {}: {}.", path.display(), why)); return },
-            Ok(f) => f
+            Err(why) => {
+                logger(&format!(
+                    "Error: Could not open file {}: {}.",
+                    path.display(),
+                    why
+                ));
+                return;
+            }
+            Ok(f) => f,
         };
 
         // dump register file
         if let Err(why) = file.write_all(b"REGISTER FILE CONTENTS:\n") {
-            logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+            logger(&format!(
+                "Error: Could write to file {}: {}.",
+                path.display(),
+                why
+            ));
             return;
         };
         for i in 0..RF_SIZE {
@@ -71,25 +85,40 @@ impl MCU {
             let right = format!("{:#010X}", self.rf_rd(i as u32));
             let line = format!("    {:10} {}\n", left, right);
             if let Err(why) = file.write_all(line.as_bytes()) {
-                logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+                logger(&format!(
+                    "Error: Could write to file {}: {}.",
+                    path.display(),
+                    why
+                ));
                 return;
             };
         }
 
         // dump memory
         if let Err(why) = file.write_all(b"\nMEMORY CONTENTS:\n") {
-            logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+            logger(&format!(
+                "Error: Could write to file {}: {}.",
+                path.display(),
+                why
+            ));
             return;
         };
-        for i in 0..MEM_SIZE/4 {
+        for i in 0..MEM_SIZE / 4 {
             let addr = i * 4;
             let b0 = self.mem_rd(addr as u32, mem::Size::Byte);
             let b1 = self.mem_rd((addr + 1) as u32, mem::Size::Byte);
             let b2 = self.mem_rd((addr + 2) as u32, mem::Size::Byte);
             let b3 = self.mem_rd((addr + 3) as u32, mem::Size::Byte);
-            let line = format!("    {:08x?}: {:04x?} {:04x?} {:04x?} {:04x?}\n", addr, b3, b2, b1, b0);
+            let line = format!(
+                "    {:08x?}: {:04x?} {:04x?} {:04x?} {:04x?}\n",
+                addr, b3, b2, b1, b0
+            );
             if let Err(why) = file.write_all(line.as_bytes()) {
-                logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+                logger(&format!(
+                    "Error: Could write to file {}: {}.",
+                    path.display(),
+                    why
+                ));
                 return;
             }
         }
@@ -150,10 +179,7 @@ impl MCU {
 
         // check for invalid instruction
         if let decode::Operation::Invalid = ir.op {
-            logger(&format!(
-                "[{:#010X}] Error: Invalid instruction.",
-                pc
-            ));
+            logger(&format!("[{:#010X}] Error: Invalid instruction.", pc));
             return nop;
         };
 
@@ -264,9 +290,9 @@ impl MCU {
             }
 
             decode::Operation::LB => {
-                let mut byte = self
-                    .mem
-                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte, logger);
+                let mut byte =
+                    self.mem
+                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte, logger);
                 // sign extend
                 if byte & 0b10000000 != 0 {
                     byte |= 0xFFFFFF00;
@@ -276,9 +302,11 @@ impl MCU {
             }
 
             decode::Operation::LH => {
-                let mut halfword: u32 = self
-                    .mem
-                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord, logger);
+                let mut halfword: u32 = self.mem.rd(
+                    mem_addr.overflowing_add(ir.imm).0,
+                    mem::Size::HalfWord,
+                    logger,
+                );
                 // sign extend
                 if halfword & 0b1000000000000000 != 0 {
                     halfword |= 0xFFFF0000;
@@ -310,27 +338,42 @@ impl MCU {
             decode::Operation::LHU => {
                 self.rf.wr(
                     ir.rd,
-                    self.mem
-                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord, logger),
+                    self.mem.rd(
+                        mem_addr.overflowing_add(ir.imm).0,
+                        mem::Size::HalfWord,
+                        logger,
+                    ),
                 );
                 self.incr_pc();
             }
 
             decode::Operation::SB => {
-                self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs1, mem::Size::Byte, logger);
+                self.mem.wr(
+                    mem_addr.overflowing_add(ir.imm).0,
+                    rs1,
+                    mem::Size::Byte,
+                    logger,
+                );
                 self.incr_pc();
             }
 
             decode::Operation::SH => {
-                self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::HalfWord, logger);
+                self.mem.wr(
+                    mem_addr.overflowing_add(ir.imm).0,
+                    rs2,
+                    mem::Size::HalfWord,
+                    logger,
+                );
                 self.incr_pc();
             }
 
             decode::Operation::SW => {
-                self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::Word, logger);
+                self.mem.wr(
+                    mem_addr.overflowing_add(ir.imm).0,
+                    rs2,
+                    mem::Size::Word,
+                    logger,
+                );
                 self.incr_pc();
             }
 
