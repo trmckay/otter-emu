@@ -26,6 +26,7 @@ struct GUIMessage {
     new_ir: otter::Instruction,
 }
 
+// contains all the data needed to update the GUI
 impl GUIMessage {
     fn gui_update(
         print: Option<&str>,
@@ -86,6 +87,18 @@ impl GUIMessage {
 
         msg
     }
+
+    fn log_console(tx: &glib::Sender<GUIMessage>, message: &str) {
+        tx.send(GUIMessage::gui_update(
+            Some(message),
+            None,
+            None,
+            None,
+            None,
+            None,
+        ))
+        .unwrap();
+    }
 }
 
 pub fn build_gui(application: &gtk::Application) {
@@ -94,11 +107,14 @@ pub fn build_gui(application: &gtk::Application) {
         return;
     }
 
+    // mutexs for shared memory
     let mcu_mutex = Arc::from(Mutex::from(otter::MCU::new()));
     let running_mutex = Arc::from(Mutex::from(false));
+    let programmed_mutex = Arc::from(Mutex::from(false));
+    let bps_mutex: Arc<Mutex<Vec<u32>>> = Arc::from(Mutex::from(Vec::new()));
 
     // load in glade source
-    let glade_src = include_str!("../../res/gui/gtk_main.ui");
+    let glade_src = include_str!("../../res/gui/gtk.ui");
     let builder = gtk::Builder::from_string(glade_src);
 
     // main window
@@ -117,7 +133,6 @@ pub fn build_gui(application: &gtk::Application) {
     let load_bin_btn: gtk::Button = builder.get_object("load_binary_btn").unwrap();
     let about_btn: gtk::Button = builder.get_object("about_btn").unwrap();
     let dump_btn: gtk::Button = builder.get_object("dump_btn").unwrap();
-    let console_btn: gtk::Button = builder.get_object("console_btn").unwrap();
 
     // switches
     for i in 0..16 {
@@ -135,8 +150,10 @@ pub fn build_gui(application: &gtk::Application) {
     // console
     let console_buffer: gtk::TextBuffer = builder.get_object("console_buffer").unwrap();
     let console_container: gtk::ScrolledWindow = builder.get_object("console_container").unwrap();
+
     // pc
     let pc_buffer: gtk::TextBuffer = builder.get_object("pc_buffer").unwrap();
+
     // ir buffers
     let ir_type_buffer: gtk::TextBuffer = builder.get_object("ir_type_buffer").unwrap();
     let ir_rd_buffer: gtk::TextBuffer = builder.get_object("ir_rd_buffer").unwrap();
@@ -144,20 +161,24 @@ pub fn build_gui(application: &gtk::Application) {
     let ir_rs2_buffer: gtk::TextBuffer = builder.get_object("ir_rs2_buffer").unwrap();
     let ir_imm_buffer: gtk::TextBuffer = builder.get_object("ir_imm_buffer").unwrap();
 
-    // channels and buffers
+    // channel for listening to GUI updates
     let (tx_main, rx) = glib::MainContext::channel(glib::PRIORITY_DEFAULT);
-    // set receive channel to update GUI
+    // clone builder so the GUI updated closure has access
     let builder_clone = builder.clone();
+    // attach to the rcv channel
     rx.attach(None, move |message: GUIMessage| {
+        // update the console
         if message.console_msg != "" {
             console_buffer.insert_at_cursor(&format!("\n{}", message.console_msg));
             // auto-scroll
             let adj = console_container.get_vadjustment().unwrap();
             adj.set_value(adj.get_upper() - adj.get_page_size());
         }
+        // udpate the SSEG
         if message.update_sseg {
             sseg.set_text(&format!("{:#06X}", message.new_sseg));
         }
+        // update the LEDs
         if message.update_leds {
             for i in 0..16 {
                 let curr_led: gtk::Image = builder_clone.get_object(&format!("led{}", i)).unwrap();
@@ -168,6 +189,7 @@ pub fn build_gui(application: &gtk::Application) {
                 }
             }
         }
+        // update the registers
         if message.update_rf {
             for i in 0..32 {
                 let curr_rf_buffer: gtk::TextBuffer = builder_clone
@@ -176,9 +198,11 @@ pub fn build_gui(application: &gtk::Application) {
                 curr_rf_buffer.set_text(&format!(" {:#010X} ", message.new_rf[i]));
             }
         }
+        // update the PC
         if message.update_pc {
             pc_buffer.set_text(&format!(" {:#010X} ", message.new_pc));
         }
+        // update the current instruction
         if message.update_ir {
             let rd = message.new_ir.rd;
             let rs1 = message.new_ir.rd;
@@ -189,16 +213,16 @@ pub fn build_gui(application: &gtk::Application) {
             ir_rs2_buffer.set_text(&format!(" x{} ({}) ", rs2, otter::reg_name(rs2)));
             ir_imm_buffer.set_text(&format!(" {:#010X} ", message.new_ir.imm));
         };
+        // continue
         glib::Continue(true)
     });
 
     // FILE DIALOG
-    // clone window handle (for opening a file dialogue)
     let window_clone = window.clone();
     let mcu = mcu_mutex.clone();
     let tx = tx_main.clone();
+    let programmed = programmed_mutex.clone();
     load_bin_btn.connect_clicked(move |_| {
-        println!("Loading binary.");
         let mut mcu = mcu.lock().unwrap();
         // open a dialogue
         let dialog = gtk::FileChooserDialog::with_buttons(
@@ -222,23 +246,58 @@ pub fn build_gui(application: &gtk::Application) {
         dialog.close();
         // program the MCU
         mcu.load_bin(&path);
-        tx.send(GUIMessage::gui_update(
-            Some(&format!("Programmed with {}.", path)),
-            None,
-            None,
-            None,
-            None,
-            None,
-        ))
-        .unwrap();
+        *programmed.lock().unwrap() = true;
+        GUIMessage::log_console(&tx, &format!("Programmed with {}.", path));
     });
 
     // CONSOLE BUTTON
+    let console_btn: gtk::Button = builder.get_object("console_btn").unwrap();
     let builder_clone = builder.clone();
     console_btn.connect_clicked(move |_| {
         let console: gtk::Window = builder_clone.get_object("console_window").unwrap();
+        console.set_default_size(600, 600);
         console.show_all();
         console.grab_focus();
+    });
+
+    // BREAKPOINTS BTNs
+    let bp_btn: gtk::Button = builder.get_object("bp_btn").unwrap();
+    let builder_clone = builder.clone();
+    bp_btn.connect_clicked(move |_| {
+        let bps: gtk::Window = builder_clone.get_object("bp_window").unwrap();
+        bps.set_default_size(400, 200);
+        bps.show_all();
+        bps.grab_focus();
+    });
+
+    // BREAKPOINTS ENTRY
+    let builder_clone = builder.clone();
+    let add_bp_btn: gtk::Button = builder.get_object("add_bp_btn").unwrap();
+    let clear_bp_btn: gtk::Button = builder.get_object("clear_bp_btn").unwrap();
+    let bps_clone = bps_mutex.clone();
+    add_bp_btn.connect_clicked(move |_| {
+        let input: gtk::Entry = builder_clone.get_object("bp_entry").unwrap();
+        let list: gtk::ListBox = builder_clone.get_object("bp_list").unwrap();
+        let addr = match util::parse::parse_int(&input.get_text()) {
+            Ok(n) => n,
+            _ => return,
+        };
+        bps_clone.lock().unwrap().push(addr);
+        let row = gtk::ListBoxRow::new();
+        let label = gtk::Label::new(Some(&format!("{:#10X}", addr)));
+        let container = gtk::Box::new(gtk::Orientation::Horizontal, 20);
+        container.add(&label);
+        container.pack_start(&label, true, true, 10);
+        row.add(&container);
+        list.add(&row);
+        list.show_all();
+    });
+    let bps_clone = bps_mutex.clone();
+    let builder_clone = builder.clone();
+    clear_bp_btn.connect_clicked(move |_| {
+        bps_clone.lock().unwrap().clear();
+        let list: gtk::ListBox = builder_clone.get_object("bp_list").unwrap();
+        list.foreach(|w| {list.remove(w)});
     });
 
     // ABOUT BUTTON
@@ -247,7 +306,12 @@ pub fn build_gui(application: &gtk::Application) {
     });
 
     // DUMP STATE BUTTON
-    dump_btn.connect_clicked(move |_| {});
+    let mcu = mcu_mutex.clone();
+    let tx_logger = tx_main.clone();
+    dump_btn.connect_clicked(move |_| {
+        mcu.lock().unwrap().dump("oemu.dump", |s| {GUIMessage::log_console(&tx_logger, s)});
+    });
+
     // READ MEMORY
     let builder_clone = builder.clone();
     let mcu = mcu_mutex.clone();
@@ -258,7 +322,7 @@ pub fn build_gui(application: &gtk::Application) {
             _ => return,
         };
         let mcu = mcu.lock().unwrap();
-        let res = mcu.mem_rd(addr);
+        let res = mcu.mem_rd(addr, otter::Size::Word);
         let buffer: gtk::TextBuffer = builder.get_object("mem_buffer").unwrap();
         buffer.set_text(&format!("{:#010X}", res));
     });
@@ -284,53 +348,53 @@ pub fn build_gui(application: &gtk::Application) {
     // RUN
     let mcu = mcu_mutex.clone();
     let running = running_mutex.clone();
+    let programmed = programmed_mutex.clone();
     let tx = tx_main.clone();
-
     run_btn.connect_clicked(move |_| {
+        // do not spawn another thread if it's already running
+        if *running.lock().unwrap() {
+            return;
+        }
+        if !*programmed.lock().unwrap() {
+            GUIMessage::log_console(&tx, "Error: MCU must be programmed first.");
+            return;
+        }
         // clone mutexs
         let mcu = mcu.clone();
         let running = running.clone();
         let tx = tx.clone();
-
+        let bps = bps_mutex.clone();
         // create a new thread so the CPU runs in the background
         thread::spawn(move || {
             let mut c: usize = 0;
-            // update running state
-            {
-                *running.lock().unwrap() = true;
-            }
+            *running.lock().unwrap() = true;
             let mut local_running = true;
-
             // do while still running (wait for pause btn)
             while local_running {
-                {
-                    let mut mcu = mcu.lock().unwrap();
-                    let tx_logger = tx.clone();
-                    mcu.step(move |s| {
-                        tx_logger
-                            .send(GUIMessage::gui_update(
-                                Some(s),
-                                None,
-                                None,
-                                None,
-                                None,
-                                None,
-                            ))
-                            .unwrap();
-                    });
-                }
-                // check running variable
-                {
+                let mut mcu = mcu.lock().unwrap();
+                let tx_logger = tx.clone();
+                mcu.step(move |s| GUIMessage::log_console(&tx_logger, s));
+                if bps.lock().unwrap().contains(&mcu.pc) {
+                    *running.lock().unwrap() = false;
+                    local_running = false;
+                    tx.send(GUIMessage::gui_update(
+                        Some(&format!("Encountered breakpoint at {:#010X}.", mcu.pc)),
+                        Some(mcu.leds()),
+                        Some(mcu.sseg()),
+                        Some(mcu.rf()),
+                        Some(mcu.pc),
+                        Some(mcu.fetch(|_s| {}).0),
+                    ))
+                    .unwrap();
+                } else {
                     local_running = *running.lock().unwrap();
                 }
-
                 // refresh GUI
                 thread::sleep(Duration::from_micros(IR_PERIOD_US));
                 c += 1;
                 if c == GUI_REFRESH_PERIOD {
                     // reset count, lock mcu, read, send message
                     c = 0;
-                    let mcu = mcu.lock().unwrap();
                     tx.send(GUIMessage::gui_update(
                         None,
                         Some(mcu.leds()),
@@ -349,42 +413,28 @@ pub fn build_gui(application: &gtk::Application) {
     let tx = tx_main.clone();
     let mcu = mcu_mutex.clone();
     let running = running_mutex.clone();
+    let programmed = programmed_mutex.clone();
     step_btn.connect_clicked(move |_| {
-        if !*running.lock().unwrap() {
-            let mut mcu = mcu.lock().unwrap();
-            let tx_logger = tx.clone();
-            mcu.step(move |s| {
-                tx_logger
-                    .send(GUIMessage::gui_update(
-                        Some(s),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ))
-                    .unwrap();
-            });
-            tx.send(GUIMessage::gui_update(
-                None,
-                Some(mcu.leds()),
-                Some(mcu.sseg()),
-                Some(mcu.rf()),
-                Some(mcu.pc),
-                Some(mcu.fetch(|_s| {}).0),
-            ))
-            .unwrap();
-        } else {
-            tx.send(GUIMessage::gui_update(
-                Some("Cannot step while running."),
-                None,
-                None,
-                None,
-                None,
-                None,
-            ))
-            .unwrap();
+        if !*programmed.lock().unwrap() {
+            GUIMessage::log_console(&tx, "Error: MCU must be programmed first.");
+            return;
         }
+        if *running.lock().unwrap() {
+            GUIMessage::log_console(&tx, "Error: Cannot step while running.");
+            return;
+        }
+        let mut mcu = mcu.lock().unwrap();
+        let tx_logger = tx.clone();
+        mcu.step(move |s| GUIMessage::log_console(&tx_logger, s));
+        tx.send(GUIMessage::gui_update(
+            None,
+            Some(mcu.leds()),
+            Some(mcu.sseg()),
+            Some(mcu.rf()),
+            Some(mcu.pc),
+            Some(mcu.fetch(|_s| {}).0),
+        ))
+        .unwrap();
     });
 
     // PAUSE

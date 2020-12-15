@@ -15,6 +15,7 @@
             <property name="can-focus">False</property>
             <property name="title" translatable="yes">Breakpoints</property>
             <property name="has-subtitle">False</property>
+            <property name="show-close-button">True</property>
             <child>
               <placeholder/>
             </child>
@@ -43,7 +44,7 @@
                 <property name="margin-end">20</property>
                 <property name="orientation">vertical</property>
                 <child>
-                  <object class="GtkEntry" id="mem_addr_entry1">
+                  <object class="GtkEntry" id="bp_entry">
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="margin-left">10</property>
@@ -60,7 +61,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="read_mem_btn1">
+                  <object class="GtkButton" id="add_bp_btn">
                     <property name="label" translatable="yes">Add</property>
                     <property name="width-request">100</property>
                     <property name="visible">True</property>
@@ -79,6 +80,28 @@
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="clear_bp_btn">
+                    <property name="label" translatable="yes">Clear</property>
+                    <property name="width-request">100</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                    <property name="halign">center</property>
+                    <property name="valign">center</property>
+                    <property name="margin-left">10</property>
+                    <property name="margin-right">10</property>
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <property name="margin-top">10</property>
+                    <property name="margin-bottom">10</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
               </object>
@@ -335,20 +358,14 @@ Load a binary to begin emulation.</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <child>
-                  <object class="GtkButton" id="load_binary_btn">
+                  <object class="GtkButton" id="about_btn">
+                    <property name="label" translatable="yes">About</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="halign">center</property>
                     <property name="valign">center</property>
-                    <signal name="clicked" handler="on_load_binary_btn_clicked" swapped="no"/>
-                    <child>
-                      <object class="GtkImage" id="load_bin_img">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="stock">gtk-execute</property>
-                      </object>
-                    </child>
+                    <signal name="clicked" handler="on_about_btn_clicked" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -357,22 +374,14 @@ Load a binary to begin emulation.</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="dump_btn">
+                  <object class="GtkButton" id="load_binary_btn">
+                    <property name="label" translatable="yes">Load binary</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="halign">center</property>
                     <property name="valign">center</property>
-                    <signal name="clicked" handler="on_dump_btn_clicked" swapped="no"/>
-                    <child>
-                      <object class="GtkImage" id="dump_img">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="halign">center</property>
-                        <property name="valign">center</property>
-                        <property name="stock">gtk-save-as</property>
-                      </object>
-                    </child>
+                    <signal name="clicked" handler="on_load_binary_btn_clicked" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -381,22 +390,14 @@ Load a binary to begin emulation.</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="about_btn">
+                  <object class="GtkButton" id="dump_btn">
+                    <property name="label" translatable="yes">Dump state</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <property name="halign">center</property>
                     <property name="valign">center</property>
-                    <signal name="clicked" handler="on_about_btn_clicked" swapped="no"/>
-                    <child>
-                      <object class="GtkImage" id="about_img">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="halign">center</property>
-                        <property name="valign">center</property>
-                        <property name="stock">gtk-info</property>
-                      </object>
-                    </child>
+                    <signal name="clicked" handler="on_dump_btn_clicked" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -406,22 +407,29 @@ Load a binary to begin emulation.</property>
                 </child>
                 <child>
                   <object class="GtkButton" id="console_btn">
+                    <property name="label" translatable="yes">Console</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">True</property>
                     <signal name="clicked" handler="on_console_button_clicked" swapped="no"/>
-                    <child>
-                      <object class="GtkImage" id="console_img">
-                        <property name="visible">True</property>
-                        <property name="can-focus">False</property>
-                        <property name="stock">gtk-properties</property>
-                      </object>
-                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="bp_btn">
+                    <property name="label" translatable="yes">Breakpoints</property>
+                    <property name="visible">True</property>
+                    <property name="can-focus">True</property>
+                    <property name="receives-default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">4</property>
                   </packing>
                 </child>
               </object>

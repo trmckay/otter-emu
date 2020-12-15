@@ -151,10 +151,10 @@ impl RAM {
     }
 
     // try to read a byte, if unset it is read as zero
-    fn try_read_byte(&self, addr: u32, offset: u8) -> u8 {
+    fn try_read_byte<L>(&self, addr: u32, offset: u8, logger: L) -> u8 where L: Fn(&str) {
         let d_rd: Option<u8> = self.mem[addr as usize + offset as usize];
         match d_rd {
-            None => 0,
+            None => {logger(&format!("Warning: Read unset memory at {:#010X}.", addr + (offset as u32))); 0 },
             Some(d) => d,
         }
     }
@@ -163,7 +163,7 @@ impl RAM {
     // 'size' is defined as: 0 for byte, 1 for half-word, or 2 for word.
     // Unused bits are not read. For example, with size=1 and data=0xFFFF, only 0x000F is returned.
     // Reading unset memory will return 0
-    pub fn rd(&self, addr: u32, size: Size) -> u32 {
+    pub fn rd<L>(&self, addr: u32, size: Size, logger: L) -> u32 where L: Fn(&str) {
         let rv_size = match size {
             Size::Byte => 0,
             Size::HalfWord => 1,
@@ -171,15 +171,15 @@ impl RAM {
         };
 
         // read first byte
-        let mut data = self.try_read_byte(addr, 0) as u32;
+        let mut data = self.try_read_byte(addr, 0, &logger) as u32;
 
         // read second byte
         if rv_size >= 1 {
-            data += (self.try_read_byte(addr, 1) as u32) << 8;
+            data += (self.try_read_byte(addr, 1, &logger) as u32) << 8;
         }
         if rv_size >= 2 {
-            data += (self.try_read_byte(addr, 2) as u32) << 16;
-            data += (self.try_read_byte(addr, 3) as u32) << 24;
+            data += (self.try_read_byte(addr, 2, &logger) as u32) << 16;
+            data += (self.try_read_byte(addr, 3, &logger) as u32) << 24;
         }
         data
     }
@@ -248,6 +248,7 @@ impl Memory {
                     ((word_addr << 2) + byte_offset) as u32,
                     byte as u32,
                     Size::Byte,
+                    |_s| {}
                 )
             }
         }
@@ -257,7 +258,7 @@ impl Memory {
     pub fn add_io(&mut self, addr: u32, size: u32) {
         if self.mmio.devices.contains_key(&addr) {
             eprintln!(
-                "Error: Memory: cannot map new IO device to preoccupied address {:#010X}",
+                "Error: Cannot map new IO device to preoccupied address {:#010X}",
                 addr
             );
             return;
@@ -270,22 +271,27 @@ impl Memory {
     }
 
     // read from the correct region of memory
-    pub fn rd(&self, addr: u32, size: Size) -> u32 {
+    pub fn rd<L>(&self, addr: u32, size: Size, logger: L) -> u32
+        where L: Fn(&str)
+    {
         if addr < self.main.size {
-            self.main.rd(addr, size)
+            self.main.rd(addr, size, logger)
         } else if addr >= self.mmio_begin {
             self.mmio.rd(addr, size)
         } else {
+            logger(&format!("Error: Reading from invalid memory address {:#010X}.", addr));
             0
         }
     }
 
     // write to the correct region of memory
-    pub fn wr(&mut self, addr: u32, data: u32, size: Size) {
+    pub fn wr<L>(&mut self, addr: u32, data: u32, size: Size, logger: L) where L: Fn(&str) {
         if addr < self.main.size {
             self.main.wr(addr, data, size);
         } else if addr >= self.mmio_begin {
             self.mmio.wr(addr, data, size);
+        } else {
+            logger(&format!("Error: Writing to invalid memory address {:#010X}.", addr));
         }
     }
 }
@@ -302,8 +308,8 @@ mod tests {
         let addr: u32 = 0x0123;
         let data_wr: u32 = 0x000000FF;
         let data_exp: u32 = 0x000000FF;
-        mem.wr(addr, data_wr, Size::Byte);
-        let data_rd: u32 = mem.rd(addr, Size::Byte);
+        mem.wr(addr, data_wr, Size::Byte, |_s| {});
+        let data_rd: u32 = mem.rd(addr, Size::Byte, |_s| {});
         println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
         data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
@@ -315,8 +321,8 @@ mod tests {
         let addr = 0x0000;
         let data_wr: u32 = 0xFFFFFFFF;
         let data_exp: u32 = 0x000000FF;
-        mem.wr(addr, data_wr, Size::Byte);
-        let data_rd: u32 = mem.rd(addr, Size::Byte);
+        mem.wr(addr, data_wr, Size::Byte, |_s| {});
+        let data_rd: u32 = mem.rd(addr, Size::Byte, |_s| {});
         println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
         data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
@@ -328,8 +334,8 @@ mod tests {
         let addr: u32 = 0x0321;
         let data_wr: u32 = 0x0000FFFF;
         let data_exp: u32 = 0x0000FFFF;
-        mem.wr(addr, data_wr, Size::HalfWord);
-        let data_rd: u32 = mem.rd(addr, Size::HalfWord);
+        mem.wr(addr, data_wr, Size::HalfWord, |_s| {});
+        let data_rd: u32 = mem.rd(addr, Size::HalfWord, |_s| {});
         println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
         data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
@@ -341,8 +347,8 @@ mod tests {
         let addr: u32 = 0x0000;
         let data_wr: u32 = 0xFFFFFFFF;
         let data_exp: u32 = 0x0000FFFF;
-        mem.wr(addr, data_wr, Size::HalfWord);
-        let data_rd: u32 = mem.rd(addr, Size::HalfWord);
+        mem.wr(addr, data_wr, Size::HalfWord, |_s| {});
+        let data_rd: u32 = mem.rd(addr, Size::HalfWord, |_s| {});
         println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
         data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
@@ -354,8 +360,8 @@ mod tests {
         let addr: u32 = 0x0000;
         let data_wr: u32 = 0x1234ABCD;
         let data_exp: u32 = 0x1234ABCD;
-        mem.wr(addr, data_wr, Size::Word);
-        let data_rd: u32 = mem.rd(addr, Size::Word);
+        mem.wr(addr, data_wr, Size::Word, |_s| {});
+        let data_rd: u32 = mem.rd(addr, Size::Word, |_s| {});
         println! {"wrote: {:#010X}, read: {:#010X}, expected: {:#010X}",
         data_wr, data_rd, data_exp };
         assert_eq!(data_exp, data_rd);
@@ -366,41 +372,41 @@ mod tests {
         let mut mem = Memory::new(0x1000);
         for i in 0..mem.main.size / 4 {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0x0FFFFFFF) as u32;
-            mem.wr(4 * i, data_wr, Size::Word);
-            assert_eq!(data_wr, mem.rd(4 * i, Size::Word));
+            mem.wr(4 * i, data_wr, Size::Word, |_s| {});
+            assert_eq!(data_wr, mem.rd(4 * i, Size::Word, |_s| {}));
         }
         for i in 0..mem.main.size / 2 {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0xFFFF) as u32;
-            mem.wr(2 * i, data_wr, Size::HalfWord);
-            assert_eq!(data_wr, mem.rd(2 * i, Size::HalfWord));
+            mem.wr(2 * i, data_wr, Size::HalfWord, |_s| {});
+            assert_eq!(data_wr, mem.rd(2 * i, Size::HalfWord, |_s| {}));
         }
         for i in 0..mem.main.size {
             let data_wr: u32 = rand::thread_rng().gen_range(0, 0xFF) as u32;
-            mem.wr(i, data_wr, Size::Byte);
-            assert_eq!(data_wr, mem.rd(i, Size::Byte));
+            mem.wr(i, data_wr, Size::Byte, |_s| {});
+            assert_eq!(data_wr, mem.rd(i, Size::Byte, |_s| {}));
         }
     }
 
     #[test]
     fn read_unset() {
         let mem = Memory::new(0x1000);
-        mem.rd(0, Size::Word);
+        mem.rd(0, Size::Word, |_s| {});
     }
 
     #[test]
     fn wr_invalid() {
         let mut mem = Memory::new(0x1000);
         mem.add_io(0x1000, 4);
-        mem.wr(mem.main.size, 1, Size::Word);
-        assert_eq!(0, mem.rd(mem.main.size + 40, Size::Word));
+        mem.wr(mem.main.size, 1, Size::Word, |_s| {});
+        assert_eq!(0, mem.rd(mem.main.size + 40, Size::Word, |_s| {}));
     }
 
     #[test]
     fn rd_invalid() {
         let mut mem = Memory::new(0x1000);
         mem.add_io(0x1000, 4);
-        mem.rd(mem.main.size + 40, Size::Word);
-        assert_eq!(0, mem.rd(mem.main.size, Size::Word));
+        mem.rd(mem.main.size + 40, Size::Word, |_s| {});
+        assert_eq!(0, mem.rd(mem.main.size, Size::Word, |_s| {}));
     }
 
     #[test]
@@ -412,7 +418,7 @@ mod tests {
         }
         mem.prog(binary);
         for i in 0..16 {
-            assert_eq!(i as u32, mem.rd(i, Size::Byte));
+            assert_eq!(i as u32, mem.rd(i, Size::Byte, |_s| {}));
         }
     }
 
@@ -420,7 +426,7 @@ mod tests {
     fn simple_mmio() {
         let mut mem = Memory::new(0x1000);
         mem.add_io(0x1000, 4);
-        mem.wr(0x1000, 12, Size::Byte);
-        assert_eq!(12, mem.rd(0x1000, Size::Byte));
+        mem.wr(0x1000, 12, Size::Byte, |_s| {});
+        assert_eq!(12, mem.rd(0x1000, Size::Byte, |_s| {}));
     }
 }

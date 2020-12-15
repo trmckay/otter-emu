@@ -2,8 +2,12 @@ use super::super::util::*;
 use super::devices::mem;
 use super::devices::rf;
 use super::rv32i::*;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
 
-pub const MEM_SIZE: u32 = 0x10000;
+pub const MEM_SIZE: usize = 0x10000;
+pub const RF_SIZE: usize = 32;
 
 const LEDS_ADDR: u32 = 0x11080000;
 const LEDS_WIDTH: u32 = 2;
@@ -24,7 +28,7 @@ impl MCU {
     pub fn new() -> MCU {
         let mut mcu = MCU {
             pc: 0,
-            mem: mem::Memory::new(MEM_SIZE),
+            mem: mem::Memory::new(MEM_SIZE as u32),
             rf: rf::RegisterFile::init(),
         };
 
@@ -47,6 +51,49 @@ impl MCU {
     // Text section begins at zero. Binary should not exceed 64 kB.
     pub fn load_bin(&mut self, binary: &str) {
         self.mem.prog(io::file_to_bytes(binary));
+    }
+
+    pub fn dump<L>(&self, path: &str, logger: L) where L: Fn(&str) {
+        let path = Path::new(path);
+        // Open a file in write-only mode, returns `io::Result<File>`
+        let mut file = match File::create(&path) {
+            Err(why) => { logger(&format!("Error: Could not open file {}: {}.", path.display(), why)); return },
+            Ok(f) => f
+        };
+
+        // dump register file
+        if let Err(why) = file.write_all(b"REGISTER FILE CONTENTS:\n") {
+            logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+            return;
+        };
+        for i in 0..RF_SIZE {
+            let left = format!("x{} ({}):", i, decode::reg_name(i as u32));
+            let right = format!("{:#010X}", self.rf_rd(i as u32));
+            let line = format!("    {:10} {}\n", left, right);
+            if let Err(why) = file.write_all(line.as_bytes()) {
+                logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+                return;
+            };
+        }
+
+        // dump memory
+        if let Err(why) = file.write_all(b"\nMEMORY CONTENTS:\n") {
+            logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+            return;
+        };
+        for i in 0..MEM_SIZE/4 {
+            let addr = i * 4;
+            let b0 = self.mem_rd(addr as u32, mem::Size::Byte);
+            let b1 = self.mem_rd((addr + 1) as u32, mem::Size::Byte);
+            let b2 = self.mem_rd((addr + 2) as u32, mem::Size::Byte);
+            let b3 = self.mem_rd((addr + 3) as u32, mem::Size::Byte);
+            let line = format!("    {:08x?}: {:04x?} {:04x?} {:04x?} {:04x?}\n", addr, b3, b2, b1, b0);
+            if let Err(why) = file.write_all(line.as_bytes()) {
+                logger(&format!("Error: Could write to file {}: {}.", path.display(), why));
+                return;
+            }
+        }
+        logger(&format!("Dumped state to {}.", path.display()));
     }
 
     // step once; closure defines logging method
@@ -78,8 +125,8 @@ impl MCU {
         self.rf.rd(addr)
     }
 
-    pub fn mem_rd(&self, addr: u32) -> u32 {
-        self.mem.rd(addr, mem::Size::Word)
+    pub fn mem_rd(&self, addr: u32, size: mem::Size) -> u32 {
+        self.mem.rd(addr, size, |_s| {})
     }
 
     fn incr_pc(&mut self) {
@@ -104,7 +151,7 @@ impl MCU {
         // check for invalid instruction
         if let decode::Operation::Invalid = ir.op {
             logger(&format!(
-                "[{:#010X}] Error: Skipping invalid instruction.",
+                "[{:#010X}] Error: Invalid instruction.",
                 pc
             ));
             return nop;
@@ -121,15 +168,15 @@ impl MCU {
         ir
     }
 
-    pub fn fetch<L>(&self, _logger: L) -> (decode::Instruction, u32)
+    pub fn fetch<L>(&self, logger: L) -> (decode::Instruction, u32)
     where
         L: Fn(&str),
     {
-        let ir = self.mem.rd(self.pc, mem::Size::Word);
+        let ir = self.mem.rd(self.pc, mem::Size::Word, logger);
         (decode::decode(ir), ir)
     }
 
-    fn exec<L>(&mut self, ir: decode::Instruction, _logger: L)
+    fn exec<L>(&mut self, ir: decode::Instruction, logger: L)
     where
         L: Fn(&str),
     {
@@ -145,7 +192,7 @@ impl MCU {
         // i.e. numbers are always stored/retrieved as unsigned, then interpreted/casted
         match ir.op {
             decode::Operation::Invalid => {
-                panic!("Error: Instruction was corrupted.",);
+                logger(&format!("[{:#010X}] Error: Instruction was corrupted. This is an error in the emulator, not the program.", self.pc));
             }
 
             decode::Operation::LUI => {
@@ -219,7 +266,7 @@ impl MCU {
             decode::Operation::LB => {
                 let mut byte = self
                     .mem
-                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte);
+                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte, logger);
                 // sign extend
                 if byte & 0b10000000 != 0 {
                     byte |= 0xFFFFFF00;
@@ -231,7 +278,7 @@ impl MCU {
             decode::Operation::LH => {
                 let mut halfword: u32 = self
                     .mem
-                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord);
+                    .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord, logger);
                 // sign extend
                 if halfword & 0b1000000000000000 != 0 {
                     halfword |= 0xFFFF0000;
@@ -244,7 +291,7 @@ impl MCU {
                 self.rf.wr(
                     ir.rd,
                     self.mem
-                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Word),
+                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Word, logger),
                 );
                 self.incr_pc();
             }
@@ -254,7 +301,7 @@ impl MCU {
                 self.rf.wr(
                     ir.rd,
                     self.mem
-                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte),
+                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::Byte, logger),
                 );
                 self.incr_pc();
             }
@@ -264,26 +311,26 @@ impl MCU {
                 self.rf.wr(
                     ir.rd,
                     self.mem
-                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord),
+                        .rd(mem_addr.overflowing_add(ir.imm).0, mem::Size::HalfWord, logger),
                 );
                 self.incr_pc();
             }
 
             decode::Operation::SB => {
                 self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs1, mem::Size::Byte);
+                    .wr(mem_addr.overflowing_add(ir.imm).0, rs1, mem::Size::Byte, logger);
                 self.incr_pc();
             }
 
             decode::Operation::SH => {
                 self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::HalfWord);
+                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::HalfWord, logger);
                 self.incr_pc();
             }
 
             decode::Operation::SW => {
                 self.mem
-                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::Word);
+                    .wr(mem_addr.overflowing_add(ir.imm).0, rs2, mem::Size::Word, logger);
                 self.incr_pc();
             }
 
@@ -392,21 +439,21 @@ impl MCU {
         for (i, l) in leds.iter_mut().enumerate() {
             //                    read a byte plus an offset          mask off the bit we care about
             //        |--------------------------------------------| |-------------------|
-            *l = (self.mem.rd(LEDS_ADDR + (i as u32) / 8, mem::Size::Byte) & (0b1 << (i % 8))) != 0
+            *l = (self.mem_rd(LEDS_ADDR + (i as u32) / 8, mem::Size::Byte) & (0b1 << (i % 8))) != 0
         }
         leds
     }
 
     pub fn sseg(&self) -> u16 {
-        self.mem.rd(SSEG_ADDR, mem::Size::HalfWord) as u16
+        self.mem_rd(SSEG_ADDR, mem::Size::HalfWord) as u16
     }
 
     pub fn toggle_sw(&mut self, index: usize) {
-        let prev_state = self.mem.rd(SWITCHES_ADDR, mem::Size::HalfWord);
+        let prev_state = self.mem_rd(SWITCHES_ADDR, mem::Size::HalfWord);
         let updated_state: u32;
         updated_state = prev_state ^ (0b1 << index);
         self.mem
-            .wr(SWITCHES_ADDR, updated_state, mem::Size::HalfWord);
+            .wr(SWITCHES_ADDR, updated_state, mem::Size::HalfWord, |_s| {});
     }
 }
 
