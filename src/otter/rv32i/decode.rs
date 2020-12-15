@@ -1,7 +1,5 @@
 use super::bitwise;
 
-pub const WIDTH: usize = 32;
-
 #[derive(Debug)]
 pub enum Operation {
     // load upper
