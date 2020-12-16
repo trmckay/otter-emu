@@ -11,7 +11,7 @@ mod util;
 
 fn main() {
     App::new("oemu")
-        .version("0.2.0")
+        .version("0.1.0")
         .author("Trevor McKay <trmckay@calpoly.edu>")
         .about("Emulator for the RV32I multi-cycle Otter")
         .get_matches();
